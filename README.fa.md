@@ -324,6 +324,15 @@ PRهای مستندات و تست‌ها عالی‌اند برای شروع.
 
 ---
 
+## نویسنده‌ها
+
+| | گیت‌هاب |
+|:--|:--------|
+| عسکر نیرومند | [@askarniroomand](https://github.com/askarniroomand) |
+| Pakrohk | [@Pakrohk](https://github.com/Pakrohk) |
+
+---
+
 ## لایسنس
 
-[MIT](LICENSE) © Askar Niroomand
+[MIT](LICENSE) © Askar Niroomand & Pakrohk

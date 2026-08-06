@@ -450,7 +450,16 @@ Small docs PRs and tests are excellent first contributions.
 
 ## License
 
-MIT © Askar Niroomand — see [LICENSE](./LICENSE).
+MIT © Askar Niroomand & Pakrohk — see [LICENSE](./LICENSE).
+
+---
+
+## Authors
+
+| | GitHub |
+|:--|:-------|
+| Askar Niroomand | [@askarniroomand](https://github.com/askarniroomand) |
+| Pakrohk | [@Pakrohk](https://github.com/Pakrohk) |
 
 ---
 
@@ -458,7 +467,7 @@ MIT © Askar Niroomand — see [LICENSE](./LICENSE).
 
 | Channel | Link |
 |:--------|:-----|
-| Maintainer | [github.com/askarniroomand](https://github.com/askarniroomand) |
+| Authors | [@askarniroomand](https://github.com/askarniroomand) · [@Pakrohk](https://github.com/Pakrohk) |
 | Telegram | [t.me/MRROBOT_DT](https://t.me/MRROBOT_DT) |
 | Security | [SECURITY.md](./SECURITY.md) |
 | Persian docs | [README.fa.md](./README.fa.md) |
