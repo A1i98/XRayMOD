@@ -255,7 +255,7 @@ const DEFAULT_SETTINGS = {
   'panel.cf_email': '',
   'panel.cf_email_enforce': 'false',
   'panel.custom_domains': '',
-  'panel.version': '5.2.0',
+  'panel.version': '5.1.1',
   'ech.enabled': 'false',
   'ech.sni': 'cloudflare-ech.com',
   'ech.dns': 'https://dns.alidns.com/dns-query',
@@ -397,7 +397,7 @@ async function ensureSchemaInner(db: D1Database): Promise<void> {
         .run();
       await db
         .prepare('INSERT OR REPLACE INTO kvstore (k, v, updated) VALUES (?, ?, ?)')
-        .bind('panel.version', '5.2.0', nowSoft)
+        .bind('panel.version', '5.1.1', nowSoft)
         .run();
       await db
         .prepare('INSERT OR REPLACE INTO kvstore (k, v, updated) VALUES (?, ?, ?)')

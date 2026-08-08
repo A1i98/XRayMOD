@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- Expanded automated tests (miniflare)
-- Public OpenAPI/schema for worker admin API
-- WARP / chain-proxy polish
-
----
-
-## [5.2.0] - 2026-08-09
-
 ### Added
 - Telegram operator bot (`telegram-bot/`) — create / list / delete / update panels with Persian reply keyboard and step progress
 - Client-path Clean IP scan with ranked recommendations from the visitor network
@@ -24,11 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Panel UI branding normalized to XRayMOD (removed internal theme codenames from user-facing chrome)
 - README EN/FA: clearer install path and Cloudflare API token guide
-- Package / panel version bumped to **5.2.0**
+- Telegram / panel Persian copy cleaned up (no casual assistant tone)
 
 ### Fixed
 - Nested `/panel/*` routes loading `/_next` assets
 - SECURE PATH login / CSS edge cases under disguise mode
+
+### Planned
+- Expanded automated tests (miniflare)
+- Public OpenAPI/schema for worker admin API
+- WARP / chain-proxy polish
 
 ---
 
@@ -104,7 +100,6 @@ See also [CHANGELOG-5.1.1.md](CHANGELOG-5.1.1.md) for the operator-focused break
 | New features | MINOR | New sub format, new disguise skin, Admin Dashboard |
 | Fixes / docs / chores | PATCH | Installer cache fix, typo |
 
-[Unreleased]: https://github.com/askarniroomand/XRayMOD/compare/v5.2.0...HEAD
-[5.2.0]: https://github.com/askarniroomand/XRayMOD/releases/tag/v5.2.0
+[Unreleased]: https://github.com/askarniroomand/XRayMOD/compare/v5.1.1...HEAD
 [5.1.1]: https://github.com/askarniroomand/XRayMOD/releases/tag/v5.1.1
 [1.0.0]: https://github.com/askarniroomand/XRayMOD/releases/tag/v1.0.0
