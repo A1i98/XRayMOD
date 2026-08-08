@@ -1,8 +1,8 @@
 {
   "name": "xraymod",
   "private": true,
-  "version": "5.1.1",
-  "description": "Gen 5.1.1 stealth VLESS/Trojan/VMess panel on Cloudflare Workers — compulsory SECURE PATH, silent 404, CF-email login, Admin Dashboard, D1, smart sub",
+  "version": "5.2.0",
+  "description": "XRayMOD stealth VLESS/Trojan/VMess panel on Cloudflare Workers — SECURE PATH, silent 404, admin dashboard, D1, smart sub, Telegram bot",
   "keywords": [
     "xraymod",
     "cloudflare-workers",

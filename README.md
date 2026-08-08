@@ -197,8 +197,6 @@ Everything else (Node tooling, clone, D1, UI build, Worker deploy, bootstrap) is
 
 > **Gen 5.1.1+:** Bare `/panel`, `/api/*`, `/sub/*` **without** the SECURE PATH return **404**. Always share links that include the UUID path. See [CHANGELOG-5.1.1.md](CHANGELOG-5.1.1.md).
 
-⭐ Star the repo if it helps — it keeps maintenance motivation high.
-
 ---
 
 ## After install — first 10 minutes
@@ -475,5 +473,5 @@ MIT © Askar Niroomand & Pakrohk — see [LICENSE](./LICENSE).
 ---
 
 <p align="center">
-  <sub>Built for operators who want edge-native control planes · Please star if useful</sub>
+  <sub>XRayMOD · Cloudflare Workers + D1</sub>
 </p>

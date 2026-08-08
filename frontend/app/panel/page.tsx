@@ -61,7 +61,7 @@ export default function DashboardPage() {
   return (
     <div className="page-shell space-y-7">
       <PageHeader
-        eyebrow="Aperture"
+        eyebrow="XRayMOD"
         title={t('dashboard')}
         description={t('overview')}
         actions={
@@ -89,7 +89,7 @@ export default function DashboardPage() {
         <div className="relative z-[1] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="chip chip-live">v{status?.version || '5.1.1'}</span>
+              <span className="chip chip-live">v{status?.version || '5.2.0'}</span>
               <span className={status?.configured ? 'chip chip-live' : 'chip chip-warn'}>
                 {status?.configured ? t('active') : 'Setup pending'}
               </span>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
         <StatCard
           title={t('status')}
           value={status?.configured ? t('active') : 'Setup'}
-          subtitle={status?.version || '5.1.1'}
+          subtitle={status?.version || '5.2.0'}
           icon={Wifi}
           color={status?.configured ? 'emerald' : 'amber'}
         />

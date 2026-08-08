@@ -5,7 +5,7 @@ import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'XrayMOD',
-  description: 'Aperture control plane — stealth proxy on Cloudflare Workers',
+  description: 'XRayMOD — stealth proxy panel on Cloudflare Workers',
   robots: 'noindex, nofollow',
 };
 

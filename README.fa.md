@@ -170,8 +170,6 @@ bash <(curl -fsSL https://raw.githubusercontent.com/askarniroomand/XRayMOD/main/
 
 > ⚠️ از نسل ۵.۱.۱ به بعد، مسیرهای برهنه مثل `/panel` یا `/sub/...` **بدون** SECURE PATH همه **۴۰۴** هستند. همیشه UUID مسیر را در لینک داشته باشید. جزئیات: [CHANGELOG-5.1.1.md](CHANGELOG-5.1.1.md)
 
-اگر پروژه برایتان مفید بود، ⭐ استار بزنید — انگیزه نگهداری را بالا نگه می‌دارد.
-
 ---
 
 ## بعد از نصب
@@ -302,7 +300,7 @@ https://WORKER.workers.dev/<SECURE_PATH>/me/<USER_UUID>
   <a href="https://t.me/MRROBOT_DT"><img src="https://img.shields.io/badge/تلگرام-@MRROBOT__DT-26A5E4?style=for-the-badge&logo=telegram" alt="Telegram"/></a>
 </p>
 
-سوال، باگ، پیشنهاد — خوشحال می‌شویم کمک کنیم.  
+سوال، باگ یا پیشنهاد را در تلگرام بفرستید.  
 **لینک پنل، رمز و توکن را عمومی نفرستید.**
 
 نسخه انگلیسی و جزئیات بیشتر: [README.md](README.md)
