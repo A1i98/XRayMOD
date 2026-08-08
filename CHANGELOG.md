@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Telegram operator bot (`telegram-bot/`) — create / list / delete / update panels with Persian reply keyboard and step progress
+- Client-path Clean IP scan with ranked recommendations from the visitor network
+- Dual-author credit: Askar Niroomand & Pakrohk
+
+### Changed
+- Panel UI branding normalized to XRayMOD (removed internal theme codenames from user-facing chrome)
+- README EN/FA: clearer install path and Cloudflare API token guide
+- Telegram / panel Persian copy cleaned up (no casual assistant tone)
+
+### Fixed
+- Nested `/panel/*` routes loading `/_next` assets
+- SECURE PATH login / CSS edge cases under disguise mode
+
 ### Planned
 - Expanded automated tests (miniflare)
 - Public OpenAPI/schema for worker admin API

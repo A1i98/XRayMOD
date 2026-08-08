@@ -1,22 +1,35 @@
-# XrayMOD Telegram Bot
+# ربات تلگرام XRayMOD
 
-ربات پایتون جدا برای ساخت / حذف / آپدیت پنل روی Cloudflare.
+ساخت، فهرست، حذف و به‌روزرسانی پنل روی Cloudflare از تلگرام.
 
 ## قابلیت‌ها
 
-- گرفتن **توکن CF** → **یوزر** → **رمز** و ساخت پنل کامل
-- چند پنل برای هر کاربر
-- حذف پنل (Worker + D1)
-- دکمه **آپدیت** → `git pull` آخرین `main` + rebuild + redeploy
+- ساخت پنل با توکن CF، نام کاربری و رمز (۳ مرحله)
+- چند پنل برای هر کاربر تلگرام
+- حذف Worker و D1 مربوطه
+- آپدیت از `main` گیت‌هاب (`git pull` + rebuild + deploy)
+- کیبورد پایین با دکمه‌های فارسی
 
-## نیازمندی‌ها روی سرور
+## دستورها و دکمه‌ها
+
+| دکمه / متن | کار |
+|:-----------|:----|
+| ساخت پنل جدید | شروع ویزارد ۳ مرحله‌ای |
+| پنل‌های من | فهرست + لینک ورود |
+| آپدیت همه | آپدیت همه پنل‌ها از GitHub |
+| راهنما | راهنمای کوتاه |
+| `حذف 1` | حذف پنل با شناسه |
+| `آپدیت 1` | آپدیت یک پنل |
+| `/start` `/help` `/create` `/cancel` | دستورهای استاندارد |
+
+## نیازمندی‌ها
 
 - Python 3.10+
 - Node.js + npm
 - git
 - دسترسی شبکه به Cloudflare و GitHub
 
-## نصب و اجرا (همیشه روشن)
+## نصب
 
 ```bash
 cd telegram-bot
@@ -24,31 +37,15 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# BOT_TOKEN را از @BotFather بگذار
-nano .env
+# BOT_TOKEN را از @BotFather بگذارید
 python bot.py
 ```
 
-با systemd (نمونه):
+متغیرهای اختیاری در `.env`:
 
-```ini
-[Unit]
-Description=XrayMOD Telegram Bot
-After=network.target
-
-[Service]
-WorkingDirectory=/opt/xraymod/telegram-bot
-ExecStart=/opt/xraymod/telegram-bot/.venv/bin/python bot.py
-Restart=always
-RestartSec=5
-Environment=PYTHONUNBUFFERED=1
-
-[Install]
-WantedBy=multi-user.target
-```
-
-## امنیت
-
-- توکن‌ها در SQLite محلی (`panels.db`) ذخیره می‌شوند — فایل را محافظت کن
-- برای قفل کردن ربات: `ALLOW_USER_IDS=123456789`
-- توکن CF را فقط در چت خصوصی بفرست
+| کلید | توضیح |
+|:-----|:------|
+| `BOT_TOKEN` | توکن ربات (اجباری) |
+| `REPO_URL` | پیش‌فرض: فورک askarniroomand/XRayMOD |
+| `WORK_ROOT` | مسیر کار (پیش‌فرض `~/.xraymod-bot`) |
+| `ALLOW_USER_IDS` | لیست شناسه تلگرام مجاز (خالی = همه) |

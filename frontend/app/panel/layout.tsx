@@ -131,7 +131,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
               Xray<span className="text-[var(--accent)]">MOD</span>
             </p>
             <p className="text-[10px] text-[var(--text-faint)] tracking-[0.08em] uppercase font-display">
-              Aperture · 5.1
+              Panel · v5.1.1
             </p>
           </div>
         </PanelLink>

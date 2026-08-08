@@ -10,11 +10,16 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
 CF_API = "https://api.cloudflare.com/client/v4"
+ProgressFn = Callable[[str], None]
+
+
+def _noop(_: str) -> None:
+    pass
 
 
 def _run(cmd: list[str], cwd: Path | None = None, env: dict | None = None, timeout: int = 900) -> str:
@@ -52,17 +57,21 @@ def _cf(token: str, method: str, path: str, json_body: dict | None = None) -> di
     return data
 
 
-def ensure_repo(work_root: Path, repo_url: str) -> Path:
+def ensure_repo(work_root: Path, repo_url: str, progress: ProgressFn = _noop) -> Path:
     work_root.mkdir(parents=True, exist_ok=True)
     repo = work_root / "XRayMOD"
     if (repo / ".git").exists():
+        progress("• دریافت آخرین کد از GitHub…")
         _run(["git", "fetch", "--all"], cwd=repo)
         _run(["git", "reset", "--hard", "origin/main"], cwd=repo)
         _run(["git", "pull", "--ff-only", "origin", "main"], cwd=repo)
+        progress("• سورس به‌روز شد")
     else:
         if repo.exists():
             shutil.rmtree(repo)
+        progress("• کلون مخزن XRayMOD…")
         _run(["git", "clone", "--depth", "1", "--branch", "main", repo_url, str(repo)])
+        progress("• مخزن آماده شد")
     return repo
 
 
@@ -128,10 +137,19 @@ CRYPTO_KEY = ""
     (repo / "wrangler.toml").write_text(content)
 
 
-def build_and_deploy(repo: Path, token: str, account_id: str, worker_name: str) -> str:
+def build_and_deploy(
+    repo: Path,
+    token: str,
+    account_id: str,
+    worker_name: str,
+    progress: ProgressFn = _noop,
+) -> str:
+    progress("• نصب وابستگی‌های npm…")
     _run(["npm", "install", "--no-fund", "--no-audit"], cwd=repo, timeout=600)
     _run(["npm", "install", "--prefix", "frontend", "--no-fund", "--no-audit"], cwd=repo, timeout=600)
+    progress("• ساخت رابط کاربری…")
     _run(["npm", "run", "build:ui"], cwd=repo, timeout=600)
+    progress("• دیپلوی روی Cloudflare Workers…")
     env = {"CLOUDFLARE_API_TOKEN": token, "CLOUDFLARE_ACCOUNT_ID": account_id}
     _run(["npx", "wrangler", "deploy"], cwd=repo, env=env, timeout=600)
     try:
@@ -144,25 +162,29 @@ def build_and_deploy(repo: Path, token: str, account_id: str, worker_name: str) 
     except Exception:
         pass
     sub = ensure_workers_subdomain(token, account_id)
+    progress("• Worker آماده شد")
     return f"https://{worker_name}.{sub}.workers.dev"
 
 
-def bootstrap(worker_url: str, username: str, password: str) -> dict[str, Any]:
+def bootstrap(worker_url: str, username: str, password: str, progress: ProgressFn = _noop) -> dict[str, Any]:
     url = f"{worker_url.rstrip('/')}/install"
     body = {"username": username, "password": password, "auto": False}
     last_err = ""
-    for _ in range(8):
+    progress("• راه‌اندازی پنل (bootstrap)…")
+    for i in range(8):
         try:
             r = httpx.post(url, json=body, timeout=60, follow_redirects=True)
             data = r.json() if r.content else {}
             if r.status_code < 400 and (data.get("success") or data.get("loginUrl") or data.get("accessUUID")):
+                progress("• پنل پیکربندی شد")
                 return data if isinstance(data, dict) else {"raw": data}
-            # already configured?
             if r.status_code in (200, 302, 409):
+                progress("• پنل آماده است")
                 return data if isinstance(data, dict) else {"status": r.status_code}
             last_err = f"{r.status_code} {r.text[:200]}"
         except Exception as e:
             last_err = str(e)
+        progress(f"• انتظار برای edge… تلاش {i + 1}/8")
         time.sleep(3)
     raise RuntimeError(f"bootstrap failed: {last_err}")
 
@@ -174,21 +196,33 @@ def create_panel(
     worker_name: str,
     work_root: Path,
     repo_url: str,
+    progress: ProgressFn = _noop,
 ) -> dict[str, Any]:
     worker_name = re.sub(r"[^a-z0-9-]", "-", worker_name.lower())[:40]
+
+    progress("• بررسی توکن Cloudflare…")
     accounts = _cf(token, "GET", "/accounts?per_page=5")
     results = accounts.get("result") or []
     if not results:
         raise RuntimeError("No Cloudflare account on this token")
     account_id = results[0]["id"]
+    account_name = results[0].get("name") or account_id
+    progress(f"• اتصال به اکانت: {account_name}")
 
-    repo = ensure_repo(work_root, repo_url)
+    repo = ensure_repo(work_root, repo_url, progress)
+
+    progress("• ساخت دیتابیس D1…")
     d1_name = f"{worker_name}-db"
     d1_id = create_d1(token, account_id, d1_name)
+    progress("• D1 ساخته شد")
+
+    progress("• آماده‌سازی wrangler.toml…")
     write_wrangler(repo, worker_name, d1_id)
-    worker_url = build_and_deploy(repo, token, account_id, worker_name)
+
+    worker_url = build_and_deploy(repo, token, account_id, worker_name, progress)
+    progress("• انتظار کوتاه برای آماده‌شدن edge…")
     time.sleep(4)
-    boot = bootstrap(worker_url, username, password)
+    boot = bootstrap(worker_url, username, password, progress)
 
     access = boot.get("accessUUID") or boot.get("access_uuid") or ""
     login = boot.get("loginUrl") or boot.get("login_url") or ""
@@ -211,6 +245,7 @@ def create_panel(
     if access and not panel:
         panel = f"{worker_url}/{access}/panel"
 
+    progress("• تمام")
     return {
         "worker_name": worker_name,
         "d1_id": d1_id,
@@ -224,26 +259,37 @@ def create_panel(
     }
 
 
-def destroy_panel(panel: dict) -> None:
+def destroy_panel(panel: dict, progress: ProgressFn = _noop) -> None:
     token = panel["cf_token"]
     account_id = panel["account_id"]
     worker = panel["worker_name"]
     d1_id = panel["d1_id"]
+    progress(f"• حذف Worker `{worker}`…")
     try:
         _cf(token, "DELETE", f"/accounts/{account_id}/workers/scripts/{worker}")
     except Exception:
         pass
+    progress("• حذف دیتابیس D1…")
     try:
         _cf(token, "DELETE", f"/accounts/{account_id}/d1/database/{d1_id}")
     except Exception:
         pass
+    progress("• حذف انجام شد")
 
 
-def update_panel(panel: dict, work_root: Path, repo_url: str) -> str:
+def update_panel(
+    panel: dict,
+    work_root: Path,
+    repo_url: str,
+    progress: ProgressFn = _noop,
+) -> str:
     token = panel["cf_token"]
     account_id = panel["account_id"]
     worker_name = panel["worker_name"]
     d1_id = panel["d1_id"]
-    repo = ensure_repo(work_root, repo_url)
+    progress(f"• آپدیت `{worker_name}`…")
+    repo = ensure_repo(work_root, repo_url, progress)
     write_wrangler(repo, worker_name, d1_id)
-    return build_and_deploy(repo, token, account_id, worker_name)
+    url = build_and_deploy(repo, token, account_id, worker_name, progress)
+    progress("• آپدیت تمام شد")
+    return url

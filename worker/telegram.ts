@@ -50,12 +50,12 @@ export async function verifyTelegramLogin(chatId: string, token: string, key: st
 
 // --- Keyboard Builders ---
 
-function mainKeyboard(panelUrl: string, subUrl: string) {
+function mainKeyboard(panelUrl: string, _subUrl: string) {
   return {
     inline_keyboard: [
-      [{ text: '📊 وضعیت', callback_data: 'm:status' }, { text: '🔗 اشتراک', callback_data: 'm:sub' }],
-      [{ text: '⚙️ کانفیگ', callback_data: 'm:config' }, { text: '👥 کاربران', callback_data: 'm:users' }],
-      [{ text: '🖥 پنل مدیریت', web_app: { url: panelUrl } }, { text: '🔄 منو', callback_data: 'm:menu' }],
+      [{ text: 'وضعیت', callback_data: 'm:status' }, { text: 'اشتراک', callback_data: 'm:sub' }],
+      [{ text: 'کانفیگ', callback_data: 'm:config' }, { text: 'کاربران', callback_data: 'm:users' }],
+      [{ text: 'پنل مدیریت', web_app: { url: panelUrl } }, { text: 'منو', callback_data: 'm:menu' }],
     ],
   };
 }
@@ -63,67 +63,53 @@ function mainKeyboard(panelUrl: string, subUrl: string) {
 // --- Message Builders ---
 
 function welcomeText(): string {
-  return `<b>🛰 به ربات XrayMOD خوش آمدید</b>
+  return `<b>ربات XRayMOD</b>
 
-<blockquote>مدیریت پنل از تلگرام:
-دریافت لینک اشتراک، وضعیت، مصرف و تنظیمات</blockquote>
+مدیریت پنل از تلگرام: لینک اشتراک، وضعیت و تنظیمات.
 
-از دکمه‌های زیر استفاده کنید 👇`;
+از دکمه‌های زیر استفاده کنید.`;
 }
 
 function helpText(): string {
-  return `<b>╔═══❰✨ راهنما ❱═══╗</b>
+  return `<b>راهنما</b>
 
-<blockquote><b>📋 دستورات</b>
-━━━━━━━━━━━━━━━━━━━━
-<code>/start</code>     ─── منوی اصلی
-<code>/sub</code>       ─── لینک اشتراک
-<code>/status</code>    ─── وضعیت سرور
-<code>/config</code>    ─── تنظیمات پروتکل
-<code>/users</code>     ─── لیست کاربران
-<code>/help</code>      ─── این راهنما</blockquote>
-
-<b>╚════════════════════╝</b>`;
+<code>/start</code> — منوی اصلی
+<code>/sub</code> — لینک اشتراک
+<code>/status</code> — وضعیت سرور
+<code>/config</code> — تنظیمات پروتکل
+<code>/users</code> — لیست کاربران
+<code>/help</code> — همین راهنما`;
 }
 
 function statusText(cfg: any, host: string, userCount: number): string {
   const uptime = Date.now() - (globalThis as any).__workerStart || 0;
   const uptimeStr = `${Math.floor(uptime / 3600000)}h ${Math.floor((uptime % 3600000) / 60000)}m`;
-  return `<b>╔═══❰📊 وضعیت سرور ❱═══╗</b>
+  return `<b>وضعیت سرور</b>
 
-<blockquote>⏱ <b>آپتایم:</b> <code>${uptimeStr}</code>
-🌐 <b>Host:</b> <code>${host}</code>
-👥 <b>کاربران:</b> <code>${userCount}</code>
-📡 <b>پروتکل:</b> <code>${cfg?.protocol || 'vless'}</code>
-🔐 <b>Transport:</b> <code>${cfg?.transport || 'ws'}</code></blockquote>
-
-<b>╚══════════════════════╝</b>`;
+آپتایم: <code>${uptimeStr}</code>
+Host: <code>${host}</code>
+کاربران: <code>${userCount}</code>
+پروتکل: <code>${cfg?.protocol || 'vless'}</code>
+Transport: <code>${cfg?.transport || 'ws'}</code>`;
 }
 
 function configText(cfg: any): string {
-  const status = (v: any) => v ? '🟢 فعال' : '🔴 غیرفعال';
-  return `<b>╔═══❰⚙️ تنظیمات ❱═══╗</b>
+  const status = (v: any) => (v ? 'فعال' : 'غیرفعال');
+  return `<b>تنظیمات</b>
 
-<blockquote><b>📡 شبکه</b>
-━━━━━━━━━━━━━━━━━━━━
-<b>پروتکل:</b> <code>${cfg?.protocol || 'vless'}</code>
-<b>Transport:</b> <code>${cfg?.transport || 'ws'}</code>
-<b>Host:</b> <code>${cfg?.host || '-'}</code></blockquote>
-
-<blockquote><b>🔐 امنیت</b>
-━━━━━━━━━━━━━━━━━━━━
-<b>ECH:</b> ${status(cfg?.ech)}
-<b>TLS Fragment:</b> ${status(cfg?.tlsFragment)}</blockquote>
-
-<b>╚════════════════════╝</b>`;
+پروتکل: <code>${cfg?.protocol || 'vless'}</code>
+Transport: <code>${cfg?.transport || 'ws'}</code>
+Host: <code>${cfg?.host || '-'}</code>
+ECH: ${status(cfg?.ech)}
+TLS Fragment: ${status(cfg?.tlsFragment)}`;
 }
 
 function usersText(users: any[]): string {
-  if (!users.length) return '<b>هیچ کاربری یافت نشد.</b>';
+  if (!users.length) return '<b>کاربری یافت نشد.</b>';
   const lines = users.slice(0, 10).map((u: any, i: number) =>
-    `${i + 1}. <code>${u.username}</code> — ${u.status === 'active' ? '🟢' : '🔴'} ${u.traffic_used || 0}MB`
+    `${i + 1}. <code>${u.username}</code> — ${u.status === 'active' ? 'فعال' : 'غیرفعال'} ${u.traffic_used || 0}MB`
   ).join('\n');
-  return `<b>👥 لیست کاربران</b>\n\n${lines}`;
+  return `<b>لیست کاربران</b>\n\n${lines}`;
 }
 
 // --- Main Webhook Handler ---
@@ -182,7 +168,7 @@ export async function handleTelegramWebhook(
         const fragRow = await env.DB.prepare('SELECT v FROM kvstore WHERE k = ?').bind('tls_fragment.enabled').first<{ v: string }>();
         sendText = configText({ protocol: 'vless', transport: 'ws', host, ech: echRow?.v === 'true', tlsFragment: fragRow?.v === 'true' });
       } else if (data === 'm:sub') {
-        sendText = `<b>╔═══❰🔗 اشتراک ❱═══╗</b>\n\n<blockquote><b>📎 لینک اشتراک شما:</b>\n<code>${subUrl}</code></blockquote>\n\n<b>📥 <a href="${subUrl}">باز کردن مستقیم</a></a></b>\n\n<b>╚══════════════════╝</b>`;
+        sendText = `<b>لینک اشتراک</b>\n<code>${subUrl}</code>\n\n<a href="${subUrl}">باز کردن</a>`;
       } else if (data === 'm:users') {
         const users = await env.DB.prepare('SELECT username, status, traffic_used FROM users LIMIT 10').all<any>();
         sendText = usersText(users.results);
@@ -228,7 +214,7 @@ export async function handleTelegramWebhook(
 
       case '/sub':
         await sendBotMessage(botToken, chatId,
-          `<b>🔗 لینک اشتراک:</b>\n<code>${subUrl}</code>\n\n📥 <a href="${subUrl}">باز کردن</a>`,
+          `<b>لینک اشتراک</b>\n<code>${subUrl}</code>\n\n<a href="${subUrl}">باز کردن</a>`,
           kb
         );
         break;

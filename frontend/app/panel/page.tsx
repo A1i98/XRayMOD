@@ -61,7 +61,7 @@ export default function DashboardPage() {
   return (
     <div className="page-shell space-y-7">
       <PageHeader
-        eyebrow="Aperture"
+        eyebrow="XRayMOD"
         title={t('dashboard')}
         description={t('overview')}
         actions={

@@ -1,6 +1,6 @@
 /**
  * Self-contained login UI — no React/Next dependency.
- * Aperture Signal skin (matches frontend brand).
+ * Panel login page (matches frontend brand).
  */
 export function renderLoginPage(origin: string, panelPrefix: string): Response {
   const prefix = panelPrefix || '';

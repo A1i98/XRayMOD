@@ -1,15 +1,15 @@
 """
-XrayMOD Telegram Bot
+XRayMOD Telegram Bot
 --------------------
-Always-on bot that lets users create / list / delete / update Cloudflare panels.
+ساخت، فهرست، حذف و به‌روزرسانی پنل روی Cloudflare Workers.
 
-Setup:
-  1. python3 -m venv .venv && source .venv/bin/activate
-  2. pip install -r requirements.txt
-  3. cp .env.example .env  → set BOT_TOKEN
-  4. python bot.py
+راه‌اندازی:
+  python3 -m venv .venv && source .venv/bin/activate
+  pip install -r requirements.txt
+  cp .env.example .env   # BOT_TOKEN
+  python bot.py
 
-Requires on the host: node, npm, git, wrangler (via npx).
+نیازمندی میزبان: node, npm, git, دسترسی شبکه به Cloudflare و GitHub
 """
 
 from __future__ import annotations
@@ -22,10 +22,9 @@ import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (
     Application,
-    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     ConversationHandler,
@@ -55,6 +54,12 @@ ALLOWLIST = {
 
 TOKEN, USER, PASS = range(3)
 
+BTN_CREATE = "ساخت پنل جدید"
+BTN_LIST = "پنل‌های من"
+BTN_UPDATE = "آپدیت همه"
+BTN_HELP = "راهنما"
+BTN_CANCEL = "انصراف"
+
 
 def allowed(user_id: int | None) -> bool:
     if not ALLOWLIST:
@@ -62,15 +67,49 @@ def allowed(user_id: int | None) -> bool:
     return bool(user_id and user_id in ALLOWLIST)
 
 
-def main_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
+def main_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
         [
-            [InlineKeyboardButton("➕ ساخت پنل جدید", callback_data="create")],
-            [InlineKeyboardButton("📦 پنل‌های من", callback_data="list")],
-            [InlineKeyboardButton("🔄 آپدیت همه از GitHub", callback_data="update_all")],
-            [InlineKeyboardButton("❓ راهنما", callback_data="help")],
-        ]
+            [KeyboardButton(BTN_CREATE)],
+            [KeyboardButton(BTN_LIST), KeyboardButton(BTN_UPDATE)],
+            [KeyboardButton(BTN_HELP)],
+        ],
+        resize_keyboard=True,
+        is_persistent=True,
+        input_field_placeholder="از منو انتخاب کنید",
     )
+
+
+def cancel_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton(BTN_CANCEL)]],
+        resize_keyboard=True,
+        input_field_placeholder="یا انصراف",
+    )
+
+
+def welcome_text() -> str:
+    return (
+        "ربات مدیریت پنل *XRayMOD*\n\n"
+        "از دکمه‌های پایین استفاده کنید:\n"
+        f"• {BTN_CREATE}\n"
+        f"• {BTN_LIST}\n"
+        f"• {BTN_UPDATE}\n"
+        f"• {BTN_HELP}\n\n"
+        "دستورها: /start · /help · /create · /cancel"
+    )
+
+
+async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    log.exception("handler error: %s", context.error)
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text(
+                "خطایی رخ داد. دوباره /start بزنید.",
+                reply_markup=main_kb(),
+            )
+        except Exception:
+            pass
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -79,131 +118,174 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("دسترسی ندارید.")
         return
     await update.effective_message.reply_text(
-        "سلام — ربات ساخت پنل *XrayMOD*\n\n"
-        "توکن Cloudflare بده → یوزر/رمز → پنل ساخته می‌شود.\n"
-        "چند پنل بساز، حذف کن، یا با یک دکمه آخرین کد GitHub را deploy کن.",
+        welcome_text(),
+        reply_markup=main_kb(),
         parse_mode="Markdown",
-        reply_markup=main_kb(),
     )
 
 
-async def help_cb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    q = update.callback_query
-    await q.answer()
-    await q.edit_message_text(
-        "۱) ساخت پنل: توکن CF با دسترسی Workers + D1\n"
-        "۲) چند پنل روی یک اکانت با نام Worker جدا\n"
-        "۳) حذف: Worker + D1 مربوطه پاک می‌شود\n"
-        "۴) آپدیت: `git pull` آخرین main + rebuild + redeploy\n\n"
-        "توکن را فقط در چت خصوصی بفرست.",
+async def help_msg(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.effective_message.reply_text(
+        "*راهنما*\n\n"
+        f"۱) *{BTN_CREATE}*\n"
+        "   توکن Cloudflare → نام کاربری → رمز\n"
+        "   توکن: قالب Edit Cloudflare Workers (+ D1)\n\n"
+        f"۲) *{BTN_LIST}*\n"
+        "   لینک ورود و مشخصات\n"
+        "   حذف: `حذف 1`\n"
+        "   آپدیت یکی: `آپدیت 1`\n\n"
+        f"۳) *{BTN_UPDATE}*\n"
+        "   آخرین کد `main` روی همه پنل‌ها\n\n"
+        "توکن و رمز را فقط در چت خصوصی بفرستید.",
         reply_markup=main_kb(),
+        parse_mode="Markdown",
     )
 
 
-async def list_cb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    q = update.callback_query
-    await q.answer()
-    uid = q.from_user.id
+async def list_msg(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    uid = update.effective_user.id
     panels = list_panels(uid)
     if not panels:
-        await q.edit_message_text("هنوز پنلی نداری.", reply_markup=main_kb())
+        await update.effective_message.reply_text(
+            f"هنوز پنلی ندارید.\nبا «{BTN_CREATE}» شروع کنید.",
+            reply_markup=main_kb(),
+        )
         return
-    lines = []
-    rows = []
+
+    chunks = [f"*پنل‌های شما* ({len(panels)})\n"]
     for p in panels:
-        lines.append(
-            f"• `{p['worker_name']}`\n"
-            f"  {p['login_url']}\n"
-            f"  `{p['username']}` / `{p['password']}`"
+        chunks.append(
+            "────────────\n"
+            f"*#{p['id']}* `{p['worker_name']}`\n"
+            f"کاربر: `{p['username']}`\n"
+            f"رمز: `{p['password']}`\n"
+            f"ورود:\n{p['login_url']}\n"
+            f"حذف: `حذف {p['id']}`\n"
+            f"آپدیت: `آپدیت {p['id']}`"
         )
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    f"🗑 حذف {p['worker_name']}", callback_data=f"del:{p['id']}"
-                )
-            ]
-        )
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    f"🔄 آپدیت {p['worker_name']}", callback_data=f"upd:{p['id']}"
-                )
-            ]
-        )
-    rows.append([InlineKeyboardButton("⬅️ منو", callback_data="menu")])
-    await q.edit_message_text(
-        "پنل‌های تو:\n\n" + "\n\n".join(lines),
+    await update.effective_message.reply_text(
+        "\n".join(chunks),
+        reply_markup=main_kb(),
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(rows),
         disable_web_page_preview=True,
     )
 
 
-async def menu_cb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    q = update.callback_query
-    await q.answer()
-    await q.edit_message_text("منوی اصلی:", reply_markup=main_kb())
-
-
 async def create_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    q = update.callback_query
-    await q.answer()
-    if not allowed(q.from_user.id):
-        await q.edit_message_text("دسترسی ندارید.")
+    if not allowed(update.effective_user.id if update.effective_user else None):
+        await update.effective_message.reply_text("دسترسی ندارید.")
         return ConversationHandler.END
     context.user_data.clear()
-    await q.edit_message_text(
-        "Cloudflare API Token را بفرست:\n"
-        "(Edit Cloudflare Workers / D1)\n\n"
-        "/cancel برای انصراف"
+    await update.effective_message.reply_text(
+        "*مرحله ۱ از ۳ — توکن*\n\n"
+        "Cloudflare API Token را ارسال کنید.\n"
+        "قالب پیشنهادی: Edit Cloudflare Workers\n\n"
+        f"برای لغو: «{BTN_CANCEL}» یا /cancel",
+        reply_markup=cancel_kb(),
+        parse_mode="Markdown",
     )
     return TOKEN
 
 
 async def got_token(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    token = (update.message.text or "").strip()
-    if len(token) < 20:
-        await update.message.reply_text("توکن کوتاه است — دوباره بفرست یا /cancel")
+    text = (update.message.text or "").strip()
+    if text == BTN_CANCEL:
+        return await cancel(update, context)
+    if len(text) < 20:
+        await update.message.reply_text(
+            "توکن کوتاه است. دوباره ارسال کنید یا انصراف بزنید.",
+            reply_markup=cancel_kb(),
+        )
         return TOKEN
-    context.user_data["cf_token"] = token
+    context.user_data["cf_token"] = text
     try:
         await update.message.delete()
     except Exception:
         pass
-    await update.message.reply_text("نام کاربری پنل؟ (مثلاً admin)")
+    await update.effective_message.reply_text(
+        "توکن دریافت و از چت حذف شد.\n\n"
+        "*مرحله ۲ از ۳ — نام کاربری*\n"
+        "نام کاربری پنل را بفرستید (مثلاً `admin`).",
+        reply_markup=cancel_kb(),
+        parse_mode="Markdown",
+    )
     return USER
 
 
 async def got_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     username = (update.message.text or "").strip()
+    if username == BTN_CANCEL:
+        return await cancel(update, context)
     if not re.match(r"^[\w.-]{3,32}$", username):
-        await update.message.reply_text("نامعتبر — ۳ تا ۳۲ کاراکتر لاتین/عدد")
+        await update.message.reply_text(
+            "نام کاربری: ۳ تا ۳۲ کاراکتر لاتین، عدد، `.` یا `-`.",
+            reply_markup=cancel_kb(),
+        )
         return USER
     context.user_data["username"] = username
-    await update.message.reply_text("رمز عبور؟ (خالی = خودکار → یک نقطه بفرست: `.`)")
+    await update.message.reply_text(
+        f"نام کاربری: `{username}`\n\n"
+        "*مرحله ۳ از ۳ — رمز*\n"
+        "رمز عبور را بفرستید.\n"
+        "برای ساخت خودکار رمز قوی فقط `.` بفرستید.",
+        reply_markup=cancel_kb(),
+        parse_mode="Markdown",
+    )
     return PASS
+
+
+async def _progress_loop(status_msg, queue: asyncio.Queue, stop: asyncio.Event) -> None:
+    lines = ["*در حال اجرا…*\n"]
+    while not stop.is_set() or not queue.empty():
+        try:
+            item = await asyncio.wait_for(queue.get(), timeout=0.4)
+            lines.append(item)
+            body = "\n".join(lines[-14:])
+            try:
+                await status_msg.edit_text(body, parse_mode="Markdown")
+            except Exception:
+                pass
+        except asyncio.TimeoutError:
+            continue
 
 
 async def got_pass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     raw = (update.message.text or "").strip()
+    if raw == BTN_CANCEL:
+        return await cancel(update, context)
     password = secrets.token_urlsafe(12) if raw in {".", "-", ""} else raw
     if len(password) < 6:
-        await update.message.reply_text("رمز حداقل ۶ کاراکتر")
+        await update.message.reply_text(
+            "رمز حداقل ۶ کاراکتر باشد.",
+            reply_markup=cancel_kb(),
+        )
         return PASS
     context.user_data["password"] = password
+    auto = raw in {".", "-", ""}
     try:
         await update.message.delete()
     except Exception:
         pass
 
-    msg = await update.message.reply_text(
-        "⏳ در حال ساخت پنل… (چند دقیقه)\ngit + npm + wrangler"
+    tip = "رمز به‌صورت خودکار ساخته شد." if auto else "رمز دریافت شد."
+    status = await update.message.reply_text(
+        f"{tip}\n\n*در حال ساخت پنل…*\nوضعیت مرحله‌به‌مرحله به‌روز می‌شود.",
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode="Markdown",
     )
 
     token = context.user_data["cf_token"]
     username = context.user_data["username"]
-    short = secrets.token_hex(3)
-    worker_name = f"xraymod-{short}"
+    worker_name = f"xraymod-{secrets.token_hex(3)}"
+
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[str] = asyncio.Queue()
+    stop = asyncio.Event()
+
+    def progress(msg: str) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, msg)
+
+    progress_task = asyncio.create_task(_progress_loop(status, queue, stop))
 
     try:
         result = await asyncio.to_thread(
@@ -214,11 +296,21 @@ async def got_pass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             worker_name=worker_name,
             work_root=WORK_ROOT,
             repo_url=REPO_URL,
+            progress=progress,
         )
     except Exception as e:
         log.exception("create failed")
-        await msg.edit_text(f"❌ ساخت ناموفق:\n`{e}`", parse_mode="Markdown")
+        stop.set()
+        await progress_task
+        await status.reply_text(
+            f"ساخت ناموفق شد.\n`{e}`\n\nاز منو دوباره تلاش کنید.",
+            reply_markup=main_kb(),
+            parse_mode="Markdown",
+        )
         return ConversationHandler.END
+
+    stop.set()
+    await progress_task
 
     save_panel(
         tg_user_id=update.effective_user.id,
@@ -235,88 +327,142 @@ async def got_pass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
 
     text = (
-        "✅ *پنل آماده شد*\n\n"
+        "*پنل آماده شد*\n\n"
         f"Worker: `{result['worker_name']}`\n"
-        f"یوزر: `{username}`\n"
+        f"کاربر: `{username}`\n"
         f"رمز: `{password}`\n"
-        f"Access UUID: `{result['access_uuid']}`\n\n"
+        f"Access UUID:\n`{result['access_uuid']}`\n\n"
         f"ورود:\n{result['login_url']}\n\n"
         f"پنل:\n{result['panel_url']}\n"
     )
     if result.get("sub_url"):
-        text += f"\nساب:\n{result['sub_url']}\n"
-    text += "\n_لینک را خصوصی نگه دار._"
+        text += f"\nسابسکریپشن:\n{result['sub_url']}\n"
+    text += "\n_لینک‌ها را خصوصی نگه دارید._"
 
-    await msg.edit_text(text, parse_mode="Markdown", disable_web_page_preview=True, reply_markup=main_kb())
+    await status.reply_text(
+        text,
+        reply_markup=main_kb(),
+        parse_mode="Markdown",
+        disable_web_page_preview=True,
+    )
     context.user_data.clear()
     return ConversationHandler.END
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
-    await update.message.reply_text("لغو شد.", reply_markup=main_kb())
+    await update.effective_message.reply_text("لغو شد.", reply_markup=main_kb())
     return ConversationHandler.END
 
 
-async def delete_cb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    q = update.callback_query
-    await q.answer()
-    pid = int(q.data.split(":", 1)[1])
-    panels = list_panels(q.from_user.id)
+async def delete_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    m = re.match(r"^حذف\s+(\d+)$", (update.message.text or "").strip())
+    if not m:
+        return
+    pid = int(m.group(1))
+    panels = list_panels(update.effective_user.id)
     panel = next((p for p in panels if p["id"] == pid), None)
     if not panel:
-        await q.edit_message_text("پیدا نشد.", reply_markup=main_kb())
+        await update.message.reply_text("پنل پیدا نشد.", reply_markup=main_kb())
         return
-    await q.edit_message_text(f"⏳ حذف `{panel['worker_name']}`…", parse_mode="Markdown")
+
+    status = await update.message.reply_text(
+        f"در حال حذف `{panel['worker_name']}`…",
+        parse_mode="Markdown",
+    )
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[str] = asyncio.Queue()
+    stop = asyncio.Event()
+
+    def progress(msg: str) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, msg)
+
+    progress_task = asyncio.create_task(_progress_loop(status, queue, stop))
     try:
-        await asyncio.to_thread(destroy_panel, panel)
-        delete_panel(pid, q.from_user.id)
-        await q.edit_message_text("✅ حذف شد.", reply_markup=main_kb())
+        await asyncio.to_thread(destroy_panel, panel, progress)
+        stop.set()
+        await progress_task
+        delete_panel(pid, update.effective_user.id)
+        await status.reply_text("حذف شد.", reply_markup=main_kb())
     except Exception as e:
-        await q.edit_message_text(f"❌ حذف ناموفق: `{e}`", parse_mode="Markdown", reply_markup=main_kb())
+        stop.set()
+        await progress_task
+        await status.reply_text(
+            f"حذف ناموفق.\n`{e}`",
+            reply_markup=main_kb(),
+            parse_mode="Markdown",
+        )
 
 
-async def update_one_cb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    q = update.callback_query
-    await q.answer()
-    pid = int(q.data.split(":", 1)[1])
-    panels = list_panels(q.from_user.id)
+async def update_one_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    m = re.match(r"^آپدیت\s+(\d+)$", (update.message.text or "").strip())
+    if not m:
+        return
+    pid = int(m.group(1))
+    panels = list_panels(update.effective_user.id)
     panel = next((p for p in panels if p["id"] == pid), None)
     if not panel:
-        await q.edit_message_text("پیدا نشد.", reply_markup=main_kb())
+        await update.message.reply_text("پنل پیدا نشد.", reply_markup=main_kb())
         return
-    await q.edit_message_text(f"⏳ آپدیت `{panel['worker_name']}` از GitHub…", parse_mode="Markdown")
+
+    status = await update.message.reply_text(
+        f"آپدیت `{panel['worker_name']}` از GitHub…",
+        parse_mode="Markdown",
+    )
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[str] = asyncio.Queue()
+    stop = asyncio.Event()
+
+    def progress(msg: str) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, msg)
+
+    progress_task = asyncio.create_task(_progress_loop(status, queue, stop))
     try:
-        url = await asyncio.to_thread(update_panel, panel, WORK_ROOT, REPO_URL)
-        await q.edit_message_text(
-            f"✅ آپدیت شد\n{url}",
+        url = await asyncio.to_thread(update_panel, panel, WORK_ROOT, REPO_URL, progress)
+        stop.set()
+        await progress_task
+        await status.reply_text(
+            f"آپدیت شد.\n{url}",
             reply_markup=main_kb(),
             disable_web_page_preview=True,
         )
     except Exception as e:
-        await q.edit_message_text(f"❌ آپدیت ناموفق: `{e}`", parse_mode="Markdown", reply_markup=main_kb())
+        stop.set()
+        await progress_task
+        await status.reply_text(
+            f"آپدیت ناموفق.\n`{e}`",
+            reply_markup=main_kb(),
+            parse_mode="Markdown",
+        )
 
 
-async def update_all_cb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    q = update.callback_query
-    await q.answer()
-    panels = list_panels(q.from_user.id)
+async def update_all_msg(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    panels = list_panels(update.effective_user.id)
     if not panels:
-        await q.edit_message_text("پنلی نیست.", reply_markup=main_kb())
+        await update.message.reply_text("پنلی برای آپدیت نیست.", reply_markup=main_kb())
         return
-    await q.edit_message_text(f"⏳ آپدیت {len(panels)} پنل از GitHub main…")
+
+    status = await update.message.reply_text(
+        f"آپدیت {len(panels)} پنل از GitHub main…"
+    )
     ok_n = 0
     errors = []
-    for p in panels:
+    for idx, p in enumerate(panels, 1):
         try:
+            await status.edit_text(
+                f"آپدیت همه ({idx}/{len(panels)})\n"
+                f"فعلی: `{p['worker_name']}`",
+                parse_mode="Markdown",
+            )
             await asyncio.to_thread(update_panel, p, WORK_ROOT, REPO_URL)
             ok_n += 1
         except Exception as e:
             errors.append(f"{p['worker_name']}: {e}")
-    text = f"✅ {ok_n}/{len(panels)} آپدیت شد."
+
+    text = f"پایان.\n{ok_n}/{len(panels)} آپدیت شد."
     if errors:
         text += "\n\nخطاها:\n" + "\n".join(f"• {e}" for e in errors[:5])
-    await q.edit_message_text(text, reply_markup=main_kb())
+    await status.reply_text(text, reply_markup=main_kb())
 
 
 def build_app() -> Application:
@@ -324,36 +470,53 @@ def build_app() -> Application:
         raise SystemExit("BOT_TOKEN missing — set in .env")
 
     init_db()
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .connect_timeout(30)
+        .read_timeout(30)
+        .write_timeout(30)
+        .build()
+    )
+    app.add_error_handler(on_error)
 
     conv = ConversationHandler(
-        entry_points=[CallbackQueryHandler(create_start, pattern="^create$")],
+        entry_points=[
+            MessageHandler(filters.Regex(f"^{re.escape(BTN_CREATE)}$"), create_start),
+            CommandHandler("create", create_start),
+        ],
         states={
             TOKEN: [MessageHandler(filters.TEXT & ~filters.COMMAND, got_token)],
             USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, got_user)],
             PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, got_pass)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            MessageHandler(filters.Regex(f"^{re.escape(BTN_CANCEL)}$"), cancel),
+        ],
         allow_reentry=True,
     )
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_msg))
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(conv)
-    app.add_handler(CallbackQueryHandler(help_cb, pattern="^help$"))
-    app.add_handler(CallbackQueryHandler(list_cb, pattern="^list$"))
-    app.add_handler(CallbackQueryHandler(menu_cb, pattern="^menu$"))
-    app.add_handler(CallbackQueryHandler(delete_cb, pattern=r"^del:\d+$"))
-    app.add_handler(CallbackQueryHandler(update_one_cb, pattern=r"^upd:\d+$"))
-    app.add_handler(CallbackQueryHandler(update_all_cb, pattern="^update_all$"))
-    app.add_handler(CallbackQueryHandler(create_start, pattern="^create$"))
+    app.add_handler(MessageHandler(filters.Regex(f"^{re.escape(BTN_HELP)}$"), help_msg))
+    app.add_handler(MessageHandler(filters.Regex(f"^{re.escape(BTN_LIST)}$"), list_msg))
+    app.add_handler(MessageHandler(filters.Regex(f"^{re.escape(BTN_UPDATE)}$"), update_all_msg))
+    app.add_handler(MessageHandler(filters.Regex(r"^حذف\s+\d+$"), delete_text))
+    app.add_handler(MessageHandler(filters.Regex(r"^آپدیت\s+\d+$"), update_one_text))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
     return app
 
 
 def main() -> None:
     app = build_app()
-    log.info("XrayMOD bot running…")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    log.info("XRayMOD bot running")
+    app.run_polling(
+        drop_pending_updates=False,
+        allowed_updates=Update.ALL_TYPES,
+    )
 
 
 if __name__ == "__main__":

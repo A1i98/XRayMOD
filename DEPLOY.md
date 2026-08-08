@@ -1,4 +1,4 @@
-# XRayMOD — Deploy & Runbook (Gen 5.1.1)
+# XRayMOD — Deploy & Runbook (v5.1.1)
 
 ## Architecture (unified)
 
