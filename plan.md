@@ -93,7 +93,6 @@ CF Worker (Proxy) ←→ VPS Backend (Management)
 - Bot functionality
 
 ### ۴.۳ Documentation
-- `.opencode/` structure
 - README update
 - API docs
 

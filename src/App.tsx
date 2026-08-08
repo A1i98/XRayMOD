@@ -728,6 +728,43 @@ export default function App() {
                   isAddUserDialogOpen={isAddUserDialogOpen}
                   setIsAddUserDialogOpen={setIsAddUserDialogOpen}
                   setProtocols={setProtocols}
+                  disguiseEnabled={disguiseEnabled}
+                  setDisguiseEnabled={setDisguiseEnabled}
+                  disguiseAdminPath={disguiseAdminPath}
+                  setDisguiseAdminPath={setDisguiseAdminPath}
+                  disguiseLoginPath={disguiseLoginPath}
+                  setDisguiseLoginPath={setDisguiseLoginPath}
+                  disguiseSubPath={disguiseSubPath}
+                  setDisguiseSubPath={setDisguiseSubPath}
+                  disguiseFallbackPage={disguiseFallbackPage}
+                  setDisguiseFallbackPage={setDisguiseFallbackPage}
+                  cleanIPs={cleanIPs}
+                  cleanIPScanResults={cleanIPScanResults}
+                  cleanIPISP={cleanIPISP}
+                  cleanIPScanning={cleanIPScanning}
+                  handleScanCleanIP={handleScanCleanIP}
+                  handleApplyCleanIP={handleApplyCleanIP}
+                  echEnabled={echEnabled}
+                  setEchEnabled={setEchEnabled}
+                  echSni={echSni}
+                  setEchSni={setEchSni}
+                  echDns={echDns}
+                  setEchDns={setEchDns}
+                  tlsFragEnabled={tlsFragEnabled}
+                  setTlsFragEnabled={setTlsFragEnabled}
+                  tlsFragMode={tlsFragMode}
+                  setTlsFragMode={setTlsFragMode}
+                  tgBotToken={tgBotToken}
+                  setTgBotToken={setTgBotToken}
+                  tgChatId={tgChatId}
+                  setTgChatId={setTgChatId}
+                  backends={backends}
+                  setBackends={setBackends}
+                  backendIP={backendIP}
+                  setBackendIP={setBackendIP}
+                  backendPort={backendPort}
+                  setBackendPort={setBackendPort}
+                  handleRegisterBackend={handleRegisterBackend}
                 />
               ) : (
                 <UserView 
@@ -737,6 +774,13 @@ export default function App() {
                   handleWithdraw={handleWithdraw}
                   userProfile={userProfile}
                   setUserProfile={setUserProfile}
+                  backends={backends}
+                  setBackends={setBackends}
+                  backendIP={backendIP}
+                  setBackendIP={setBackendIP}
+                  backendPort={backendPort}
+                  setBackendPort={setBackendPort}
+                  handleRegisterBackend={handleRegisterBackend}
                 />
               )}
             </AnimatePresence>
@@ -801,7 +845,44 @@ function AdminView({
   setEditingUser,
   isAddUserDialogOpen,
   setIsAddUserDialogOpen,
-  setProtocols
+  setProtocols,
+  disguiseEnabled,
+  setDisguiseEnabled,
+  disguiseAdminPath,
+  setDisguiseAdminPath,
+  disguiseLoginPath,
+  setDisguiseLoginPath,
+  disguiseSubPath,
+  setDisguiseSubPath,
+  disguiseFallbackPage,
+  setDisguiseFallbackPage,
+  cleanIPs,
+  cleanIPScanResults,
+  cleanIPISP,
+  cleanIPScanning,
+  handleScanCleanIP,
+  handleApplyCleanIP,
+  echEnabled,
+  setEchEnabled,
+  echSni,
+  setEchSni,
+  echDns,
+  setEchDns,
+  tlsFragEnabled,
+  setTlsFragEnabled,
+  tlsFragMode,
+  setTlsFragMode,
+  tgBotToken,
+  setTgBotToken,
+  tgChatId,
+  setTgChatId,
+  backends,
+  setBackends,
+  backendIP,
+  setBackendIP,
+  backendPort,
+  setBackendPort,
+  handleRegisterBackend,
 }: any) {
   return (
     <motion.div
@@ -1785,7 +1866,21 @@ function AdminView({
   );
 }
 
-function UserView({ activeTab, userConfigs, userAddress, handleWithdraw, userProfile, setUserProfile }: any) {
+function UserView({
+  activeTab,
+  userConfigs,
+  userAddress,
+  handleWithdraw,
+  userProfile,
+  setUserProfile,
+  backends,
+  setBackends,
+  backendIP,
+  setBackendIP,
+  backendPort,
+  setBackendPort,
+  handleRegisterBackend,
+}: any) {
   const [selectedConfig, setSelectedConfig] = useState<UserConfig | null>(null);
   
   // Purchase State
@@ -2031,10 +2126,10 @@ function UserView({ activeTab, userConfigs, userAddress, handleWithdraw, userPro
               <p className="text-xs text-zinc-500 mb-3">Run this command on your Ubuntu/Debian VPS to install Xray-core:</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 p-3 bg-zinc-950 rounded-lg text-xs text-emerald-400 font-mono overflow-x-auto whitespace-nowrap">
-                  bash &lt;(curl -fsSL https://raw.githubusercontent.com/EvolveBeyond/XRayMOD/main/installer/backend-install.sh) {window.location.origin} YOUR_UUID
+                  bash &lt;(curl -fsSL https://raw.githubusercontent.com/askarniroomand/XRayMOD/main/installer/backend-install.sh) {window.location.origin} YOUR_UUID
                 </code>
                 <Button variant="outline" className="border-zinc-800" onClick={() => {
-                  navigator.clipboard.writeText(`bash <(curl -fsSL https://raw.githubusercontent.com/EvolveBeyond/XRayMOD/main/installer/backend-install.sh) ${window.location.origin} YOUR_UUID`);
+                  navigator.clipboard.writeText(`bash <(curl -fsSL https://raw.githubusercontent.com/askarniroomand/XRayMOD/main/installer/backend-install.sh) ${window.location.origin} YOUR_UUID`);
                   toast.success('Copied!');
                 }}><Copy size={14} /></Button>
               </div>

@@ -7,8 +7,20 @@ const EMPTY_DISGUISE: DisguiseConfig = {
   subPath: '',
   pubAdmin: '/admin',
   pubLogin: '/login',
-  fallbackPage: '1101',
+  fallbackPage: '404',
 };
+
+/** Plain 404 — BPB-style default; no product fingerprint. */
+export function silent404(): Response {
+  return new Response('Not Found', {
+    status: 404,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
 
 function cleanPath(v: string | undefined): string {
   return String(v || '')
@@ -35,7 +47,9 @@ export async function getDisguiseConfig(env: Env, db: D1Database): Promise<Disgu
       settings[row.k] = row.v;
     }
 
-    const enabled = settings['disguise.enabled'] === 'true';
+    // Gen 5.1: disguise ON by default (opt-out via disguise.enabled=false)
+    const enabledRaw = settings['disguise.enabled'];
+    const enabled = enabledRaw !== 'false';
 
     const adminPath =
       cleanPath(env.ADMIN_PATH) || cleanPath(settings['disguise.admin_path']);
@@ -44,12 +58,15 @@ export async function getDisguiseConfig(env: Env, db: D1Database): Promise<Disgu
     const subPath =
       cleanPath(env.SUB_PATH) || cleanPath(settings['disguise.sub_path']);
 
+    const fallbackPage =
+      env.DISGUISE_PAGE || settings['disguise.fallback_page'] || '404';
+
     const on =
       (enabled || !!(env.ADMIN_PATH || env.LOGIN_PATH || env.SUB_PATH)) &&
-      !!(adminPath || loginPath || subPath);
+      (!!adminPath || !!loginPath || !!subPath || enabled);
 
     if (!on) {
-      return { ...EMPTY_DISGUISE, fallbackPage: settings['disguise.fallback_page'] || '1101' };
+      return { ...EMPTY_DISGUISE, fallbackPage };
     }
 
     return {
@@ -59,7 +76,7 @@ export async function getDisguiseConfig(env: Env, db: D1Database): Promise<Disgu
       subPath,
       pubAdmin: adminPath ? '/' + adminPath : '/admin',
       pubLogin: loginPath ? '/' + loginPath : '/login',
-      fallbackPage: env.DISGUISE_PAGE || settings['disguise.fallback_page'] || '1101',
+      fallbackPage,
     };
   } catch {
     return { ...EMPTY_DISGUISE };
@@ -94,8 +111,13 @@ export function remapDisguisePath(
     return { remapped: '/sub' + clean.slice(config.subPath.length + 1), isDecoy: false };
   }
 
-  // Real paths leaked — serve decoy
-  if (clean === '/admin' || clean === '/login') {
+  // Canonical /login|/admin are decoys ONLY when custom aliases replace them.
+  // Under SECURE PATH the real UI is /{uuid}/login → remapped pathname `/login`;
+  // treating that as a decoy served the fake CF 1101 page and broke every install.
+  if (config.loginPath && clean === '/login') {
+    return { remapped: pathname, isDecoy: true };
+  }
+  if (config.adminPath && clean === '/admin') {
     return { remapped: pathname, isDecoy: true };
   }
 
@@ -215,10 +237,153 @@ Commercial support is available at
 </html>`;
 }
 
+export function github404Page(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Page not found · GitHub · GitHub</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:#0d1117;color:#c9d1d9}
+.wrap{max-width:540px;margin:12vh auto;padding:0 1.5rem;text-align:center}
+h1{font-size:1.5rem;font-weight:600;margin:1rem 0 .5rem}
+p{color:#8b949e;font-size:.95rem;line-height:1.5}
+a{color:#58a6ff;text-decoration:none}
+.logo{font-size:3rem;opacity:.85}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">🐈</div>
+  <h1>404 — Page not found</h1>
+  <p>The page you were looking for could not be found. Maybe you mistyped the address, or the page has moved.</p>
+  <p style="margin-top:1.25rem"><a href="https://github.com">Return to GitHub</a></p>
+</div>
+</body>
+</html>`;
+}
+
+export function wordpressPage(): string {
+  return `<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordPress › Error</title>
+<style>
+body{background:#f1f1f1;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;margin:0}
+.box{background:#fff;border:1px solid #c3c4c7;border-left:4px solid #d63638;box-shadow:0 1px 1px rgba(0,0,0,.04);margin:2em auto;max-width:520px;padding:1em 1.5em}
+h1{font-size:1.1em;margin:0 0 .6em;color:#1d2327}
+p{margin:.5em 0;color:#3c434a;font-size:14px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>There has been a critical error on this website.</h1>
+  <p>Learn more about troubleshooting WordPress.</p>
+</div>
+</body>
+</html>`;
+}
+
+export function blankPage(): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title></title></head><body></body></html>`;
+}
+
+export function html1020(host: string): string {
+  const rayId = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return `<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<title>Access denied | ${host} | Cloudflare</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>body{margin:0;font-family:system-ui,sans-serif;background:#fff;color:#333}
+.w{max-width:60em;margin:4em auto;padding:0 1.5em}h1{font-size:1.6em}code{background:#f4f4f4;padding:.1em .35em;border-radius:3px}
+.ray{color:#666;font-size:.9em;margin-top:2em}</style>
+</head>
+<body>
+<div class="w">
+  <h1>Access denied</h1>
+  <p>You do not have permission to access this resource on <code>${host}</code>.</p>
+  <p>If you are the site owner, check your Cloudflare security settings.</p>
+  <p class="ray">Ray ID: ${rayId}</p>
+</div>
+</body>
+</html>`;
+}
+
+export const DISGUISE_SKINS = ['404', '1101', 'nginx', 'github', 'wordpress', 'blank', '1020'] as const;
+
 export function getDecoyResponse(host: string, pageType: string): Response {
-  const html = pageType === '1101' ? html1101(host) : nginxPage();
+  const t = (pageType || '404').toLowerCase();
+  if (t === '404' || t === 'silent' || t === 'none') {
+    return silent404();
+  }
+  let html: string;
+  let status = 200;
+  switch (t) {
+    case 'nginx':
+      html = nginxPage();
+      break;
+    case 'github':
+    case 'github404':
+      html = github404Page();
+      status = 404;
+      break;
+    case 'wordpress':
+    case 'wp':
+      html = wordpressPage();
+      status = 500;
+      break;
+    case 'blank':
+      html = blankPage();
+      break;
+    case '1020':
+      html = html1020(host);
+      status = 403;
+      break;
+    case '1101':
+    default:
+      html = html1101(host);
+      break;
+  }
   return new Response(html, {
-    status: 200,
-    headers: { 'Content-Type': 'text/html; charset=UTF-8' },
+    status,
+    headers: {
+      'Content-Type': 'text/html; charset=UTF-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
   });
+}
+
+/** Comma/space-separated path segments that trigger canary logging */
+export async function getCanaryPaths(db: D1Database): Promise<string[]> {
+  try {
+    const row = await db
+      .prepare('SELECT v FROM kvstore WHERE k = ?')
+      .bind('disguise.canary_paths')
+      .first<{ v: string }>();
+    if (!row?.v || row.v === 'false') return [];
+    return row.v
+      .split(/[\n,;\s]+/)
+      .map((s) => s.trim().toLowerCase().replace(/^\/+|\/+$/g, ''))
+      .filter((s) => s.length > 0 && s.length < 64);
+  } catch {
+    return [];
+  }
+}
+
+export function matchCanary(pathname: string, canaries: string[]): string | null {
+  if (!canaries.length) return null;
+  const clean = pathname.toLowerCase().replace(/\/+$/, '') || '/';
+  const segs = clean.split('/').filter(Boolean);
+  for (const c of canaries) {
+    if (clean === '/' + c || clean.endsWith('/' + c) || segs.includes(c)) return c;
+  }
+  return null;
 }

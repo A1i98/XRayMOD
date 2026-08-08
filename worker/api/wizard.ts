@@ -20,9 +20,13 @@ async function cfCall(token: string, path: string, method = 'GET', body?: any): 
     opts.body = JSON.stringify(body);
   }
   const r = await fetch(`${CF_API}${path}`, opts);
-  const data = await r.json();
+  const data = (await r.json()) as {
+    success?: boolean;
+    errors?: { message?: string }[];
+    result?: unknown;
+  };
   if (!data.success) {
-    const errors = (data.errors || []).map((e: any) => e.message || JSON.stringify(e)).join('; ');
+    const errors = (data.errors || []).map((e) => e.message || JSON.stringify(e)).join('; ');
     throw new Error(errors || 'Cloudflare API failed');
   }
   return data.result;
@@ -123,7 +127,7 @@ export async function handleWizard(
         compatibility_flags: ['nodejs_compat'],
         bindings: [
           { type: 'plain_text', name: 'ADMIN_PASSWORD', text: adminPassword },
-          { type: 'plain_text', name: 'DISGUISE_PAGE', text: '1101' },
+          { type: 'plain_text', name: 'DISGUISE_PAGE', text: '404' },
           { type: 'plain_text', name: 'PANEL_RECOVERY', text: 'false' },
         ],
         migrations: {
@@ -144,9 +148,14 @@ export async function handleWizard(
         headers: { 'Authorization': `Bearer ${cfToken}` },
         body: formData,
       });
-      const uploadData = await uploadR.json();
+      const uploadData = (await uploadR.json()) as {
+        success?: boolean;
+        errors?: { message?: string }[];
+      };
       if (!uploadData.success) {
-        throw new Error(`Worker upload failed: ${(uploadData.errors || []).map((e: any) => e.message).join('; ')}`);
+        throw new Error(
+          `Worker upload failed: ${(uploadData.errors || []).map((e) => e.message || '').join('; ')}`
+        );
       }
       log('Worker deployed');
 

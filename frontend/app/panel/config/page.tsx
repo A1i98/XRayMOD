@@ -32,6 +32,8 @@ interface Config {
   // Misc
   mixedProtocol: boolean;
   paused: boolean;
+  monthlyCapGb: string;
+  ispAware: boolean;
 }
 
 const defaultConfig: Config = {
@@ -56,6 +58,8 @@ const defaultConfig: Config = {
   subSingbox: true,
   mixedProtocol: false,
   paused: false,
+  monthlyCapGb: '0',
+  ispAware: true,
 };
 
 export default function ConfigPage() {
@@ -63,13 +67,45 @@ export default function ConfigPage() {
   const [hosts, setHosts] = useState<string[]>([]);
   const [newHost, setNewHost] = useState('');
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setذخیرهd] = useState(false);
 
   useEffect(() => {
-    api.get('/admin/config.json').then(d => {
-      if (d) {
-        setConfig({ ...defaultConfig, ...d });
-        if (d.host) setHosts(Array.isArray(d.host) ? d.host : [d.host]);
+    api.get('/api/settings').then((res) => {
+      const d = res?.data || res || {};
+      const mapped = {
+        ...defaultConfig,
+        protocol: d['panel.protocol'] || defaultConfig.protocol,
+        path: d['panel.path'] || defaultConfig.path,
+        uuid: d['panel.uuid'] || defaultConfig.uuid,
+        network: d['panel.network'] || defaultConfig.network,
+        security: d['panel.security'] || defaultConfig.security,
+        fingerprint: d['panel.fingerprint'] || defaultConfig.fingerprint,
+        flow: d['panel.flow'] || defaultConfig.flow,
+        allowInsecure: d['panel.allow_insecure'] === 'true',
+        enableECH: d['ech.enabled'] === 'true',
+        echSNI: d['ech.sni'] || '',
+        enableFragment: d['tls_fragment.enabled'] === 'true',
+        fragmentLength: d['tls_fragment.length'] || defaultConfig.fragmentLength,
+        fragmentSleep: d['tls_fragment.sleep'] || defaultConfig.fragmentSleep,
+        subName: d['panel.sub_name'] || defaultConfig.subName,
+        subBanner: d['panel.sub_banner'] || '',
+        subBase64: d['panel.sub_base64'] !== 'false',
+        subClash: d['panel.sub_clash'] !== 'false',
+        subSingbox: d['panel.sub_singbox'] !== 'false',
+        mixedProtocol: d['protocol.mixed_mode'] === 'true',
+        paused: d['panel.paused'] === 'true',
+        monthlyCapGb: d['panel.monthly_cap_gb'] || '0',
+        ispAware: d['panel.isp_aware_sub'] !== 'false',
+      };
+      setConfig(mapped);
+      const hostRaw = d['panel.hosts'] || d['panel.host'] || '';
+      if (hostRaw) {
+        try {
+          const parsed = JSON.parse(hostRaw);
+          setHosts(Array.isArray(parsed) ? parsed : [String(parsed)]);
+        } catch {
+          setHosts(String(hostRaw).split(',').map((h: string) => h.trim()).filter(Boolean));
+        }
       }
     }).catch(() => {});
   }, []);
@@ -77,10 +113,34 @@ export default function ConfigPage() {
   const save = async () => {
     setSaving(true);
     try {
-      await api.post('/admin/config.json', { ...config, host: hosts });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (e) {}
+      await api.put('/api/settings', {
+        'panel.protocol': config.protocol,
+        'panel.path': config.path,
+        'panel.uuid': config.uuid,
+        'panel.network': config.network,
+        'panel.security': config.security,
+        'panel.fingerprint': config.fingerprint,
+        'panel.flow': config.flow,
+        'panel.allow_insecure': String(config.allowInsecure),
+        'panel.hosts': JSON.stringify(hosts),
+        'ech.enabled': String(config.enableECH),
+        'ech.sni': config.echSNI,
+        'tls_fragment.enabled': String(config.enableFragment),
+        'tls_fragment.length': config.fragmentLength,
+        'tls_fragment.sleep': config.fragmentSleep,
+        'panel.sub_name': config.subName,
+        'panel.sub_banner': config.subBanner,
+        'panel.sub_base64': String(config.subBase64),
+        'panel.sub_clash': String(config.subClash),
+        'panel.sub_singbox': String(config.subSingbox),
+        'protocol.mixed_mode': String(config.mixedProtocol),
+        'panel.paused': String(config.paused),
+        'panel.monthly_cap_gb': String(Number(config.monthlyCapGb) || 0),
+        'panel.isp_aware_sub': String(config.ispAware),
+      });
+      setذخیرهd(true);
+      setTimeout(() => setذخیرهd(false), 2000);
+    } catch { /* ignore */ }
     setSaving(false);
   };
 
@@ -114,7 +174,7 @@ export default function ConfigPage() {
           </Button>
           <Button onClick={save} disabled={saving}>
             {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-            {saved ? 'Saved!' : 'Save'}
+            {saved ? 'ذخیرهd!' : 'ذخیره'}
           </Button>
         </div>
       </div>
@@ -344,12 +404,29 @@ export default function ConfigPage() {
       {/* Service Control */}
       <Card>
         <CardHeader title="Service Control" />
-        <Toggle
-          label="Pause Service"
-          description="Block all proxy and subscription requests (503)"
-          checked={config.paused}
-          onChange={v => setConfig({ ...config, paused: v })}
-        />
+        <div className="space-y-1">
+          <Toggle
+            label="Pause Service"
+            description="Block all proxy traffic (503) — panel stays open"
+            checked={config.paused}
+            onChange={v => setConfig({ ...config, paused: v })}
+          />
+          <Toggle
+            label="ISP-aware subscription"
+            description="Pick clean IPs based on Iranian ISP (MCI/MTN/...)"
+            checked={config.ispAware}
+            onChange={v => setConfig({ ...config, ispAware: v })}
+          />
+          <div className="pt-2">
+            <Input
+              label="Monthly panel cap (GB)"
+              type="number"
+              value={config.monthlyCapGb}
+              onChange={e => setConfig({ ...config, monthlyCapGb: e.target.value })}
+              placeholder="0 = unlimited"
+            />
+          </div>
+        </div>
       </Card>
     </div>
   );

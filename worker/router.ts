@@ -1,5 +1,6 @@
 /**
- * Router — flat, no processor system, just if/else like Nova.
+ * Router — Gen 5.1: compulsory SECURE PATH, silent 404 fallback, no public fingerprints.
+ * Pipeline: schema → proxy guards → canary → secure-path gate → routes → SPA/404.
  */
 import type { Env } from './types';
 import { ensureSchema } from './schema';
@@ -15,196 +16,295 @@ import { handleSettings } from './api/settings';
 import { handleCleanIP } from './api/cleanip';
 import { handleBackends } from './api/backends';
 import { handleWizard } from './api/wizard';
+import { handleTools } from './api/tools';
+import { handleAdmin } from './api/admin';
 import { handleSubscription } from './subscription';
+import { handleUserPortal } from './user-portal';
 import { handleProxyTraffic } from './proxy';
-import { getDisguiseConfig, getDecoyResponse } from './disguise';
+import {
+  getDisguiseConfig,
+  getDecoyResponse,
+  remapDisguisePath,
+  getCanaryPaths,
+  matchCanary,
+  silent404,
+} from './disguise';
 import { isGrpcRequest } from './proxy/grpc';
 import { isXHTTPRequest } from './proxy/xhttp';
 import { handleTelegramWebhook, handleTelegramLogin } from './telegram';
+import { serveStatic, serveRemotePages } from './static';
+import { renderLoginPage } from './panel-login';
+import { appendAudit, clientIp } from './lib/audit';
 
 type Handler = (
-  request: Request, env: Env, ctx: ExecutionContext,
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
   params: Record<string, string>
 ) => Promise<Response>;
 
-const FALLBACK_HTML = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XrayMOD</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#09090b;color:#fafafa;display:grid;place-items:center;min-height:100vh}
-.box{text-align:center;padding:2rem;max-width:440px}.icon{width:48px;height:48px;background:#10b981;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.5rem;color:#000;margin:0 auto 1.5rem}
-h1{font-size:1.5rem;margin-bottom:.5rem}p{color:#a1a1aa;font-size:.875rem;line-height:1.6}
-.links{margin-top:1.5rem;display:flex;flex-direction:column;gap:.5rem}.links a{color:#10b981;text-decoration:none;font-size:.875rem}</style></head>
-<body><div class="box"><div class="icon">X</div><h1>XrayMOD</h1><p>Panel deployed. Visit <a href="/install">/install</a> to set up.</p>
-<div class="links"><a href="/install">Setup</a><a href="/api/health">API Health</a></div></div></body></html>`;
+type Route = {
+  pattern: RegExp;
+  handler: Handler;
+  params?: string[];
+};
 
-const routes: [RegExp, Handler][] = [
-  [/^\/install(?:\/|$)/, handleInstall],
-  [/^\/api\/login$/, handleLogin],
-  [/^\/api\/logout$/, handleLogout],
-  [/^\/api\/health$/, handleHealth],
-  [/^\/api\/nodes(\/.*)?$/, handleNodes],
-  [/^\/api\/users(\/.*)?$/, handleUsers],
-  [/^\/api\/protocols$/, handleProtocols],
-  [/^\/api\/configs(\/.*)?$/, handleConfigs],
-  [/^\/api\/settings$/, handleSettings],
-  [/^\/api\/cleanip(\/.*)?$/, handleCleanIP],
-  [/^\/api\/backends(\/.*)?$/, handleBackends],
-  [/^\/api\/wizard(\/.*)?$/, handleWizard],
-  [/^\/sub\/([^/]+)$/, handleSubscription],
-  [/^\/bot$/, handleTelegramWebhook],
-  [/^\/admin$/, handleTelegramLogin],
+const routes: Route[] = [
+  { pattern: /^\/install(?:\/|$)/, handler: handleInstall },
+  { pattern: /^\/api\/login$/, handler: handleLogin },
+  { pattern: /^\/api\/logout$/, handler: handleLogout },
+  { pattern: /^\/api\/health$/, handler: handleHealth },
+  { pattern: /^\/api\/nodes(?:\/([^/]+))?$/, handler: handleNodes, params: ['id'] },
+  { pattern: /^\/api\/users(?:\/([^/]+))?$/, handler: handleUsers, params: ['id'] },
+  { pattern: /^\/api\/protocols$/, handler: handleProtocols },
+  { pattern: /^\/api\/configs(?:\/([^/]+))?$/, handler: handleConfigs, params: ['id'] },
+  { pattern: /^\/api\/settings$/, handler: handleSettings },
+  { pattern: /^\/api\/cleanip(?:\/([^/]+))?$/, handler: handleCleanIP, params: ['action'] },
+  { pattern: /^\/api\/backends(?:\/([^/]+))?$/, handler: handleBackends, params: ['id'] },
+  { pattern: /^\/api\/wizard(?:\/([^/]+))?$/, handler: handleWizard, params: ['action'] },
+  { pattern: /^\/api\/tools(?:\/([^/]+))?$/, handler: handleTools, params: ['action'] },
+  { pattern: /^\/api\/admin(?:\/([^/]+))?$/, handler: handleAdmin, params: ['action'] },
+  { pattern: /^\/sub\/([^/]+)$/, handler: handleSubscription, params: ['token'] },
+  { pattern: /^\/me\/([^/]+)$/, handler: handleUserPortal, params: ['token'] },
+  { pattern: /^\/status\/([^/]+)$/, handler: handleUserPortal, params: ['token'] },
+  { pattern: /^\/bot$/, handler: handleTelegramWebhook },
+  { pattern: /^\/admin$/, handler: handleTelegramLogin },
 ];
 
 function matchRoute(pathname: string): { handler: Handler; params: Record<string, string> } | null {
-  for (const [pattern, handler] of routes) {
-    const m = pathname.match(pattern);
-    if (m) {
-      const params: Record<string, string> = {};
-      if (m[1]) params.token = m[1];
-      if (m[2]) params.id = m[2].replace(/^\//, '');
-      return { handler, params };
+  for (const route of routes) {
+    const m = pathname.match(route.pattern);
+    if (!m) continue;
+    const params: Record<string, string> = {};
+    const names = route.params || [];
+    for (let i = 0; i < names.length; i++) {
+      const val = m[i + 1];
+      if (val !== undefined && val !== '') {
+        params[names[i]] = val.replace(/^\//, '');
+      }
+    }
+    return { handler: route.handler, params };
+  }
+  return null;
+}
+
+async function checkProxyGuards(env: Env): Promise<Response | null> {
+  const pausedRow = await env.DB.prepare(
+    'SELECT v FROM kvstore WHERE k = ?'
+  ).bind('panel.paused').first<{ v: string }>();
+  if (pausedRow?.v === 'true') {
+    return new Response('Service paused', { status: 503 });
+  }
+
+  const capRow = await env.DB.prepare(
+    'SELECT v FROM kvstore WHERE k = ?'
+  ).bind('panel.monthly_cap_gb').first<{ v: string }>();
+  const capGB = Number(capRow?.v || 0);
+  if (capGB > 0) {
+    const trafficRow = await env.DB.prepare(
+      'SELECT SUM(traffic_used) as total FROM users'
+    ).first<{ total: number }>();
+    const usedBytes = trafficRow?.total || 0;
+    if (usedBytes >= capGB * 1073741824) {
+      return new Response('Monthly data cap reached', { status: 503 });
     }
   }
   return null;
 }
 
+function isStaticAssetPath(pathname: string): boolean {
+  return (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/favicon') ||
+    /\.(js|css|map|woff2?|ttf|eot|png|jpg|jpeg|gif|svg|ico|webp|txt)$/i.test(pathname)
+  );
+}
+
+async function serveAsset(
+  request: Request,
+  env: Env,
+  pathname: string
+): Promise<Response | null> {
+  if (!env.ASSETS || !isStaticAssetPath(pathname)) return null;
+  try {
+    // Fresh GET — do not clone browser conditional headers (If-None-Match → 304)
+    // or the original /{uuid}/... URL into the Assets lookup.
+    const assetRes = await env.ASSETS.fetch(
+      new Request(new URL(pathname, 'https://assets.local'), { method: 'GET' })
+    );
+    if (assetRes.status === 200) {
+      const headers = new Headers(assetRes.headers);
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+      return new Response(assetRes.body, { status: 200, headers });
+    }
+  } catch (e) {
+    console.error('ASSETS fetch failed', e);
+  }
+  return silent404();
+}
+
+/** Unknown / unauthorized → plain 404 or configured decoy (never brand the product). */
+async function denyPublic(env: Env, host: string): Promise<Response> {
+  const disguise = await getDisguiseConfig(env, env.DB);
+  if (disguise.on && disguise.fallbackPage && disguise.fallbackPage !== '404') {
+    return getDecoyResponse(host, disguise.fallbackPage);
+  }
+  return silent404();
+}
+
 export async function handleRequest(
-  request: Request, env: Env, ctx: ExecutionContext
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext
 ): Promise<Response> {
   try {
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Max-Age': '86400',
-      }});
+      const origin = request.headers.get('Origin') || '';
+      const host = new URL(request.url).origin;
+      // Same-origin only — no public CORS wildcard fingerprint
+      const allow = !origin || origin === host ? origin || host : 'null';
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': allow,
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Max-Age': '86400',
+          Vary: 'Origin',
+        },
+      });
     }
 
     await ensureSchema(env.DB);
 
     const url = new URL(request.url);
     let pathname = url.pathname;
+    let panelPrefix = '';
     const isUpgrade = request.headers.get('Upgrade') === 'websocket';
     const isGrpc = request.method === 'POST' && isGrpcRequest(request);
     const isXhttp = request.method === 'POST' && isXHTTPRequest(request);
 
-    // WebSocket / gRPC / XHTTP → proxy directly, no UUID check
+    // WebSocket / gRPC / XHTTP → proxy (same Worker edge; kill switch + monthly cap)
     if (isUpgrade || isGrpc || isXhttp) {
+      const blocked = await checkProxyGuards(env);
+      if (blocked) return blocked;
       return handleProxyTraffic(request, env, ctx);
     }
 
-    // Paths that bypass UUID
-    const bypass = pathname.startsWith('/install') ||
-                   pathname.startsWith('/api/') ||
-                   pathname.startsWith('/sub/') ||
-                   pathname.startsWith('/bot');
+    // Canary traps (before secure-path — scanners probe public paths)
+    try {
+      const canaries = await getCanaryPaths(env.DB);
+      const hit = matchCanary(pathname, canaries);
+      if (hit) {
+        await appendAudit(
+          env.DB,
+          'canary_hit',
+          `path=${pathname} bait=${hit}`,
+          clientIp(request),
+          'scanner'
+        );
+        return denyPublic(env, url.host);
+      }
+    } catch {
+      /* ignore */
+    }
 
-    // UUID gate
     const accessUuid = await env.DB.prepare(
       'SELECT v FROM kvstore WHERE k = ?'
     ).bind('panel.access_uuid').first<{ v: string }>();
 
-    if (accessUuid?.v && !bypass) {
+    const pw = await env.DB.prepare(
+      'SELECT v FROM kvstore WHERE k = ?'
+    ).bind('panel.password_hash').first<{ v: string }>();
+
+    const isConfigured = !!(accessUuid?.v && pw?.v);
+
+    // First-boot only: /install stays public until panel is bootstrapped
+    if (!isConfigured && (pathname === '/install' || pathname.startsWith('/install/'))) {
+      return handleInstall(request, env, ctx, {});
+    }
+
+    // Static Next assets must be absolute (/_next/...) for nested SPA routes.
+    // Serving them without SECURE PATH avoids broken chunk loads on /panel/*.
+    if (pathname.startsWith('/_next/') || pathname.startsWith('/favicon')) {
+      return (await serveAsset(request, env, pathname)) || silent404();
+    }
+
+    // Compulsory SECURE PATH (access UUID) for everything except first-boot install.
+    if (isConfigured) {
       const segments = pathname.split('/').filter(Boolean);
-      if (segments.length === 0 || segments[0] !== accessUuid.v) {
-        // Not configured → redirect to /install
-        const pw = await env.DB.prepare(
-          'SELECT v FROM kvstore WHERE k = ?'
-        ).bind('panel.password_hash').first<{ v: string }>();
-        if (!pw?.v) {
-          return new Response(null, { status: 302, headers: { Location: '/install' } });
-        }
-        // Disguise
-        const disguise = await getDisguiseConfig(env, env.DB);
-        return getDecoyResponse(url.host, disguise.fallbackPage);
+      if (segments.length === 0 || segments[0] !== accessUuid!.v) {
+        // Bare /api, /login, etc. without SECURE PATH → silent 404/decoy
+        return denyPublic(env, url.host);
       }
-      // Strip UUID from path
+      panelPrefix = `/${accessUuid!.v}`;
       pathname = '/' + segments.slice(1).join('/');
-      url.pathname = pathname || '/';
-    }
+      if (pathname === '/') pathname = '/';
+      url.pathname = pathname;
 
-    // Not configured, no UUID set yet → redirect to /install
-    if (!accessUuid?.v && !bypass) {
-      const pw = await env.DB.prepare(
-        'SELECT v FROM kvstore WHERE k = ?'
-      ).bind('panel.password_hash').first<{ v: string }>();
-      if (!pw?.v) {
-        return new Response(null, { status: 302, headers: { Location: '/install' } });
+      // Non-_next static under SECURE PATH (rare)
+      if (isStaticAssetPath(pathname)) {
+        return (await serveAsset(request, env, pathname)) || silent404();
       }
+    } else {
+      // Not configured: allow install wizard assets at root for setup UI
+      if (isStaticAssetPath(pathname)) {
+        const asset = await serveAsset(request, env, pathname);
+        if (asset) return asset;
+      }
+      if (pathname === '/' || pathname === '') {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: '/install' },
+        });
+      }
+      if (pathname.startsWith('/install')) {
+        return handleInstall(request, env, ctx, {});
+      }
+      return silent404();
     }
 
-    // Match route
+    // Secret-path remapping + decoy for leaked /admin|/login
+    {
+      const disguise = await getDisguiseConfig(env, env.DB);
+      const remapped = remapDisguisePath(pathname, disguise);
+      if (remapped.isDecoy) {
+        return denyPublic(env, url.host);
+      }
+      pathname = remapped.remapped;
+      url.pathname = pathname;
+    }
+
     const route = matchRoute(pathname);
     if (route) {
       return route.handler(request, env, ctx, route.params);
     }
 
-    // Static SPA: fetch from PAGES_URL
-    const pagesUrl = (env as any).PAGES_URL as string | undefined;
-    if (pagesUrl && pathname !== '/') {
-      try {
-        const remote = await fetch(pagesUrl.replace(/\/$/, '') + pathname);
-        if (remote.status === 200) {
-          const ct = remote.headers.get('content-type') || '';
-          const body = await remote.text();
-          if (ct.includes('text/html') || pathname.endsWith('.html')) {
-            const apiScript = `<script>window.__API_BASE="${url.origin}";</script>`;
-            return new Response(body.replace('<head>', `<head>${apiScript}`), {
-              status: 200, headers: { 'Content-Type': 'text/html' },
-            });
-          }
-          return new Response(body, { status: 200, headers: { 'Content-Type': ct } });
-        }
-      } catch {}
-      // SPA fallback
-      try {
-        const spa = await fetch(pagesUrl.replace(/\/$/, '') + '/index.html');
-        if (spa.status === 200) {
-          const html = await spa.text();
-          const apiScript = `<script>window.__API_BASE="${url.origin}";</script>`;
-          return new Response(html.replace('<head>', `<head>${apiScript}`), {
-            status: 200, headers: { 'Content-Type': 'text/html' },
-          });
-        }
-      } catch {}
-    }
-
-    // Serve root SPA
-    if (pathname === '/' || pathname === '') {
-      const disguise = await getDisguiseConfig(env, env.DB);
-      if (disguise.on) {
-        return getDecoyResponse(url.host, disguise.fallbackPage);
-      }
-      if (pagesUrl) {
-        try {
-          const spa = await fetch(pagesUrl.replace(/\/$/, '') + '/index.html');
-          if (spa.status === 200) {
-            const html = await spa.text();
-            const apiScript = `<script>window.__API_BASE="${url.origin}";</script>`;
-            return new Response(html.replace('<head>', `<head>${apiScript}`), {
-              status: 200, headers: { 'Content-Type': 'text/html' },
-            });
-          }
-        } catch {}
-      }
-      return new Response(FALLBACK_HTML, {
-        status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    const isRoot = pathname === '/' || pathname === '';
+    if (isRoot) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: `${panelPrefix}/login` },
       });
     }
 
-    // Disguise fallback for unknown paths
-    const disguise = await getDisguiseConfig(env, env.DB);
-    if (disguise.on) {
-      return getDecoyResponse(url.host, disguise.fallbackPage);
+    if (pathname === '/login' || pathname === '/login/') {
+      return renderLoginPage(url.origin, panelPrefix);
     }
 
-    return new Response(FALLBACK_HTML, {
-      status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
+    const fromAssets = await serveStatic(request, env, pathname, url.origin, panelPrefix);
+    if (fromAssets) return fromAssets;
+
+    if (env.PAGES_URL) {
+      const remote = await serveRemotePages(pathname, env.PAGES_URL, url.origin, panelPrefix);
+      if (remote) return remote;
+    }
+
+    return denyPublic(env, url.host);
   } catch (e) {
-    return new Response(`Error: ${e instanceof Error ? e.message : 'Unknown'}`, {
-      status: 500, headers: { 'Content-Type': 'text/plain' },
-    });
+    console.error('Router error:', e);
+    // Never leak stack / product name on errors
+    return silent404();
   }
 }

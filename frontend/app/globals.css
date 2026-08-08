@@ -1,22 +1,396 @@
 @import "tailwindcss";
 
+/* ─── XrayMOD · Aperture Signal ───────────────────────────────────────────
+   Distinct from Nova/Obsidian emerald-glass: ink navy field, cyan aperture,
+   coral action, geometric Syne + Manrope. Solid panels, sharp rails. */
+
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
+  --bg: #060b12;
+  --bg-elevated: #0a121c;
+  --bg-panel: #0d1622;
+  --surface: #101b2a;
+  --surface-2: #142033;
+  --stroke: rgba(140, 175, 210, 0.1);
+  --stroke-strong: rgba(140, 175, 210, 0.18);
+  --text: #e8eef6;
+  --text-muted: #8fa3b8;
+  --text-faint: #5c7188;
+  --accent: #1ec8c8;
+  --accent-deep: #129a9a;
+  --accent-soft: rgba(30, 200, 200, 0.12);
+  --coral: #ff5c45;
+  --coral-soft: rgba(255, 92, 69, 0.12);
+  --danger: #ff5c6a;
+  --warn: #e8b84a;
+  --info: #5eb0ff;
+  --radius: 0.65rem;
+  --radius-lg: 0.9rem;
+  --font-display: "Syne", "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Manrope", "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em;
+}
+
+[dir="rtl"] body {
+  font-family: "Vazirmatn", var(--font-body);
+}
+
+/* Ink field + aperture glow + fine scan lines */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 40% at 85% -5%, rgba(30, 200, 200, 0.14), transparent 55%),
+    radial-gradient(ellipse 40% 35% at -5% 40%, rgba(255, 92, 69, 0.06), transparent 50%),
+    radial-gradient(ellipse 70% 50% at 50% 120%, rgba(30, 200, 200, 0.05), transparent 55%),
+    linear-gradient(165deg, #08101a 0%, #060b12 45%, #050910 100%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(140, 175, 210, 0.35) 2px,
+    rgba(140, 175, 210, 0.35) 3px
+  );
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 70%);
 }
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 ::selection {
-  background: rgba(16, 185, 129, 0.3);
+  background: rgba(30, 200, 200, 0.35);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 175, 210, 0.18);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 175, 210, 0.3);
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus-visible {
+  outline: none;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Solid panel — not soft glass Nova */
+.glass,
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+}
+
+.glass {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.page-shell {
+  animation: aperture-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes aperture-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
+}
+
+.animate-fade-up {
+  animation: aperture-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Shell / Nav ───────────────────────────────────────────────────────── */
+
+.shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .shell {
+    grid-template-columns: 232px 1fr;
+  }
+}
+
+.nav-rail {
+  background: var(--bg-elevated);
+  border-inline-end: 1px solid var(--stroke);
+  position: relative;
+}
+
+.nav-rail::before {
+  content: "";
+  position: absolute;
+  inset-inline-end: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(30, 200, 200, 0.35) 30%,
+    rgba(255, 92, 69, 0.2) 70%,
+    transparent
+  );
+  opacity: 0.7;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--bg-panel);
+  border: 1px solid var(--stroke-strong);
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.brand-mark::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1.5px solid var(--accent);
+  border-radius: 99px;
+  opacity: 0.85;
+  animation: pulse-ring 3.2s ease-in-out infinite;
+}
+
+.brand-mark::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--coral);
+  box-shadow: 0 0 12px rgba(255, 92, 69, 0.65);
+  position: relative;
+  z-index: 1;
+}
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--text-muted);
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  border: 1px solid transparent;
+}
+
+.nav-item:hover {
+  color: var(--text);
+  background: rgba(140, 175, 210, 0.05);
+}
+
+.nav-item.is-active {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: rgba(30, 200, 200, 0.22);
+}
+
+.nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -1px;
+  top: 18%;
+  bottom: 18%;
+  width: 2px;
+  border-radius: 99px;
+  background: var(--accent);
+}
+
+.nav-group-label {
+  padding: 0.35rem 0.7rem 0.15rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-family: var(--font-display);
+}
+
+/* ─── Dashboard surfaces ────────────────────────────────────────────────── */
+
+.hero-band {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--stroke-strong);
+  background:
+    linear-gradient(120deg, rgba(30, 200, 200, 0.08) 0%, transparent 38%),
+    linear-gradient(200deg, rgba(255, 92, 69, 0.05) 0%, transparent 40%),
+    var(--surface);
+  padding: 1.35rem 1.4rem;
+}
+
+.hero-band::before {
+  content: "";
+  position: absolute;
+  inset-inline-end: -2rem;
+  top: -3rem;
+  width: 11rem;
+  height: 11rem;
+  border: 1px solid rgba(30, 200, 200, 0.2);
+  border-radius: 99px;
+  pointer-events: none;
+}
+
+.hero-band::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: 0.5rem;
+  top: -1.5rem;
+  width: 7rem;
+  height: 7rem;
+  border: 1px solid rgba(255, 92, 69, 0.18);
+  border-radius: 99px;
+  pointer-events: none;
+}
+
+.stat-tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  padding: 1.05rem 1.1rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.stat-tile::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+.stat-tile:hover {
+  border-color: var(--stroke-strong);
+  transform: translateY(-1px);
+}
+
+.stat-tile[data-tone="coral"]::before {
+  background: var(--coral);
+}
+.stat-tile[data-tone="info"]::before {
+  background: var(--info);
+}
+.stat-tile[data-tone="warn"]::before {
+  background: var(--warn);
+}
+
+.aperture-grid {
+  background-image:
+    linear-gradient(rgba(140, 175, 210, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140, 175, 210, 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--stroke-strong);
+  background: rgba(140, 175, 210, 0.05);
+  color: var(--text-muted);
+}
+
+.chip-live {
+  border-color: rgba(30, 200, 200, 0.35);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.chip-warn {
+  border-color: rgba(255, 92, 69, 0.35);
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+input,
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
 }

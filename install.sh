@@ -1,76 +1,193 @@
 #!/usr/bin/env bash
-# XRayMOD Installer — Stage 1 (Bash)
-# Downloads and runs the FastAPI installer via uv.
+# ═══════════════════════════════════════════════════════════════
+#  XrayMOD — One-Click Open Source Installer
 #
-# Usage:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/EvolveBeyond/XRayMOD/refs/heads/main/install.sh)
+#  Linux / macOS / Git Bash / WSL:
+#    bash <(curl -fsSL https://raw.githubusercontent.com/askarniroomand/XRayMOD/main/install.sh)
 #
+#  Windows PowerShell:
+#    irm https://raw.githubusercontent.com/askarniroomand/XRayMOD/main/install.ps1 | iex
+#
+#  Windows CMD:
+#    powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (iwr -UseBasicParsing 'https://raw.githubusercontent.com/askarniroomand/XRayMOD/main/install.ps1').Content"
+#
+#  Flow for end users:
+#    1) Cloudflare API Token
+#    2) Account (auto if only one)
+#    3) Panel username
+#    4) Panel password
+#    5) Automatic deploy + print login / sub links
+#
+#  Support: https://t.me/MRROBOT_DT
+# ═══════════════════════════════════════════════════════════════
 set -euo pipefail
+
+# Windows Git Bash / MSYS: ensure common Node/Git paths
+if [[ "${OSTYPE:-}" == msys* || "${OSTYPE:-}" == cygwin* || -n "${MSYSTEM:-}" ]]; then
+  export PATH="/c/Program Files/nodejs:/c/Program Files/Git/cmd:${PATH}"
+fi
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m'
 
 INSTALLER_DIR="${HOME}/.xraymod"
+REPO_URL="${XRAYMOD_REPO:-https://github.com/askarniroomand/XRayMOD.git}"
+BRANCH="${XRAYMOD_BRANCH:-main}"
 
+clear 2>/dev/null || true
 echo ""
-echo -e "${GREEN}╔══════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║        XrayMOD Installer             ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
+echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║${BOLD}   XrayMOD  ·  نصب کاملاً خودکار                 ${NC}${GREEN}║${NC}"
+echo -e "${GREEN}║${DIM}   فقط توکن · یوزر · رمز  →  پنل آماده         ${NC}${GREEN}║${NC}"
+echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "  ${CYAN}پشتیبانی:${NC} https://t.me/MRROBOT_DT"
 echo ""
 
-# ── Step 1: Check curl ──────────────────────────────────────
-if ! command -v curl &>/dev/null; then
-    echo -e "${RED}Error: curl is required but not installed.${NC}"
-    exit 1
-fi
+die() { echo -e "${RED}✗${NC} $*" >&2; exit 1; }
+step() { echo -e "${YELLOW}→${NC} $*"; }
+ok() { echo -e "${GREEN}✓${NC} $*"; }
 
-# ── Step 2: Check/install uv ────────────────────────────────
-if command -v uv &>/dev/null; then
-    echo -e "${GREEN}✓${NC} uv found: $(uv --version)"
-else
-    echo -e "${YELLOW}→${NC} uv not found. Installing..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh 2>/dev/null
-    export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${PATH}"
-    if ! command -v uv &>/dev/null; then
-        echo -e "${RED}Error: uv installation failed.${NC}"
-        exit 1
+# ── prerequisites (auto where possible) ─────────────────────
+command -v curl >/dev/null || die "curl لازم است"
+
+ensure_node() {
+  if command -v node >/dev/null; then
+    local major
+    major="$(node -v | sed 's/v//' | cut -d. -f1)"
+    if [ "${major}" -ge 18 ] 2>/dev/null; then
+      ok "Node $(node -v)"
+      return 0
     fi
-    echo -e "${GREEN}✓${NC} uv installed: $(uv --version)"
+  fi
+
+  step "نصب خودکار Node.js..."
+  if command -v brew >/dev/null; then
+    brew install node@20 >/dev/null 2>&1 || brew install node >/dev/null 2>&1 || true
+  elif command -v apt-get >/dev/null && [ "$(id -u)" -eq 0 ]; then
+    apt-get update -qq && apt-get install -y -qq nodejs npm >/dev/null 2>&1 || true
+  elif command -v dnf >/dev/null && [ "$(id -u)" -eq 0 ]; then
+    dnf install -y nodejs npm >/dev/null 2>&1 || true
+  elif command -v pacman >/dev/null && [ "$(id -u)" -eq 0 ]; then
+    pacman -Sy --noconfirm nodejs npm >/dev/null 2>&1 || true
+  fi
+
+  # nvm fallback
+  if ! command -v node >/dev/null; then
+    export NVM_DIR="${HOME}/.nvm"
+    if [ ! -s "${NVM_DIR}/nvm.sh" ]; then
+      curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash >/dev/null 2>&1 || true
+    fi
+    # shellcheck disable=SC1091
+    [ -s "${NVM_DIR}/nvm.sh" ] && . "${NVM_DIR}/nvm.sh"
+    command -v nvm >/dev/null 2>&1 && nvm install --lts >/dev/null 2>&1 || true
+  fi
+
+  command -v node >/dev/null || die "Node.js 18+ لازم است — از https://nodejs.org نصب کن و دوباره همین دستور را بزن"
+  local major
+  major="$(node -v | sed 's/v//' | cut -d. -f1)"
+  [ "${major}" -ge 18 ] 2>/dev/null || die "Node.js 18+ لازم است (الان: $(node -v))"
+  ok "Node $(node -v)"
+}
+
+ensure_node
+command -v npm >/dev/null || die "npm پیدا نشد"
+
+HAS_GIT=0
+if command -v git >/dev/null; then
+  HAS_GIT=1
+  ok "git پیدا شد"
+else
+  echo -e "  ${DIM}git نیست — از دانلود ZIP استفاده می‌شود${NC}"
 fi
 
-# ── Step 3: Clone repo ─────────────────────────────────────
-echo ""
-echo -e "${YELLOW}→${NC} Setting up installer..."
+# Python runner
+export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${PATH}"
+if ! command -v uv >/dev/null; then
+  step "نصب uv (ابزار پایتون)..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+  export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${PATH}"
+fi
+
+github_zip_url() {
+  # https://github.com/owner/repo.git → archive zip
+  local url="$1" branch="$2"
+  if [[ "$url" =~ github\.com[:/]([^/]+)/([^/.]+) ]]; then
+    local owner="${BASH_REMATCH[1]}"
+    local repo="${BASH_REMATCH[2]%.git}"
+    echo "https://github.com/${owner}/${repo}/archive/refs/heads/${branch}.zip"
+    return 0
+  fi
+  return 1
+}
+
+fetch_zip() {
+  local zip_url
+  zip_url="$(github_zip_url "${REPO_URL}" "${BRANCH}")" \
+    || die "بدون git فقط ریپوهای GitHub پشتیبانی می‌شوند — git را نصب کن"
+  step "دانلود سورس (بدون git)..."
+  local zip_path="${INSTALLER_DIR}/xraymod-src.zip"
+  local extract_dir="${INSTALLER_DIR}/_extract"
+  rm -rf "${extract_dir}" "${INSTALLER_DIR}/XRayMOD"
+  mkdir -p "${extract_dir}"
+  curl -fsSL -o "${zip_path}" "${zip_url}" \
+    || die "دانلود ZIP ناموفق — اینترنت / فیلتر GitHub را چک کن"
+  if command -v unzip >/dev/null; then
+    unzip -q "${zip_path}" -d "${extract_dir}"
+  elif command -v tar >/dev/null; then
+    # bsdtar / GNU tar with libarchive can open zip
+    tar -xf "${zip_path}" -C "${extract_dir}" 2>/dev/null \
+      || die "unzip لازم است (apt install unzip / brew install unzip)"
+  else
+    die "unzip لازم است"
+  fi
+  rm -f "${zip_path}"
+  local inner
+  inner="$(find "${extract_dir}" -mindepth 1 -maxdepth 1 -type d | head -1)"
+  [ -n "${inner}" ] || die "استخراج ZIP خالی بود"
+  mv "${inner}" "${INSTALLER_DIR}/XRayMOD"
+  rm -rf "${extract_dir}"
+}
+
+# ── fetch source ────────────────────────────────────────────
 mkdir -p "${INSTALLER_DIR}"
-
-REPO_URL="https://github.com/EvolveBeyond/XRayMOD.git"
-if [ -d "${INSTALLER_DIR}/XRayMOD" ]; then
-    echo -e "${GREEN}✓${NC} Repository exists, updating..."
-    if ! git -C "${INSTALLER_DIR}/XRayMOD" pull --quiet 2>/dev/null; then
-        echo -e "${YELLOW}→${NC} Pull failed, re-cloning..."
-        rm -rf "${INSTALLER_DIR}/XRayMOD"
-        git clone --depth 1 "${REPO_URL}" "${INSTALLER_DIR}/XRayMOD" 2>/dev/null
-    fi
+if [ "${HAS_GIT}" -eq 1 ] && [ -d "${INSTALLER_DIR}/XRayMOD/.git" ]; then
+  step "به‌روزرسانی مخزن..."
+  git -C "${INSTALLER_DIR}/XRayMOD" remote set-url origin "${REPO_URL}" 2>/dev/null || true
+  git -C "${INSTALLER_DIR}/XRayMOD" fetch --depth 1 origin "${BRANCH}" --quiet 2>/dev/null || true
+  git -C "${INSTALLER_DIR}/XRayMOD" checkout -f "${BRANCH}" --quiet 2>/dev/null || true
+  git -C "${INSTALLER_DIR}/XRayMOD" reset --hard "origin/${BRANCH}" --quiet 2>/dev/null || \
+    git -C "${INSTALLER_DIR}/XRayMOD" pull --ff-only --quiet 2>/dev/null || true
+elif [ "${HAS_GIT}" -eq 1 ]; then
+  step "دانلود XrayMOD..."
+  rm -rf "${INSTALLER_DIR}/XRayMOD"
+  if ! git clone --depth 1 -b "${BRANCH}" "${REPO_URL}" "${INSTALLER_DIR}/XRayMOD" 2>/dev/null; then
+    echo -e "  ${DIM}git clone ناموفق — سوییچ به ZIP...${NC}"
+    fetch_zip
+  fi
 else
-    echo -e "${YELLOW}→${NC} Cloning repository..."
-    git clone --depth 1 "${REPO_URL}" "${INSTALLER_DIR}/XRayMOD" 2>/dev/null
-    echo -e "${GREEN}✓${NC} Repository cloned"
+  fetch_zip
 fi
-
-# Verify installer exists
-if [ ! -f "${INSTALLER_DIR}/XRayMOD/installer/__main__.py" ]; then
-    echo -e "${RED}Error: Installer files missing. Re-cloning...${NC}"
-    rm -rf "${INSTALLER_DIR}/XRayMOD"
-    git clone --depth 1 "${REPO_URL}" "${INSTALLER_DIR}/XRayMOD" 2>/dev/null
-fi
-
-# ── Step 4: Run FastAPI installer ───────────────────────────
-echo ""
-echo -e "${YELLOW}→${NC} Starting installer on http://localhost:8000"
-echo -e "${YELLOW}→${NC} Press Ctrl+C to stop"
-echo ""
 
 cd "${INSTALLER_DIR}/XRayMOD"
-exec uv run python -m installer "$@"
+[ -f installer/cli_deploy.py ] || die "installer/cli_deploy.py در مخزن نیست — main را push کردی؟"
+ok "سورس آماده است"
+echo ""
+
+# ── run interactive deploy ──────────────────────────────────
+if command -v uv >/dev/null; then
+  exec uv run --with httpx python installer/cli_deploy.py "$@"
+fi
+
+# fallback: system python
+if command -v python3 >/dev/null; then
+  python3 -m pip install --user -q httpx 2>/dev/null || true
+  exec python3 installer/cli_deploy.py "$@"
+fi
+
+die "python3 یا uv لازم است"

@@ -1,313 +1,338 @@
-<div dir="rtl" align="center">
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="XrayMOD" width="100%"/>
+</p>
 
-# XrayMOD
+<p align="center">
+  <b>پنل مخفی و مدرن مدیریت پروکسی روی Cloudflare Workers</b><br/>
+  اوپن‌سورس · سرورلس · صفحه وضعیت کاربر · ساب هوشمند · نصب یک‌خطی
+</p>
 
-**پنل مدیریت پروکسی ماژولار روی Cloudflare Workers**
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge" alt="MIT"/></a>
+  <a href="https://github.com/askarniroomand/XRayMOD/releases"><img src="https://img.shields.io/github/v/release/askarniroomand/XRayMOD?style=for-the-badge&color=38bdf8" alt="Release"/></a>
+  <a href="https://github.com/askarniroomand/XRayMOD/stargazers"><img src="https://img.shields.io/github/stars/askarniroomand/XRayMOD?style=for-the-badge&color=eab308" alt="Stars"/></a>
+  <a href="https://t.me/MRROBOT_DT"><img src="https://img.shields.io/badge/پشتیبانی-@MRROBOT__DT-26A5E4?style=for-the-badge&logo=telegram" alt="TG"/></a>
+  <a href="README.md"><img src="https://img.shields.io/badge/English-README-0ea5e9?style=for-the-badge" alt="EN"/></a>
+  <a href="https://github.com/askarniroomand"><img src="https://img.shields.io/badge/Author-askarniroomand-181717?style=for-the-badge&logo=github" alt="Author"/></a>
+</p>
 
-[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange?style=for-the-badge&logo=cloudflare)](https://workers.cloudflare.com)
-[![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org)
-
-[English](README.md)
-
-</div>
+<p align="center">
+  <a href="#xraymod-چیه"><b>معرفی</b></a> ·
+  <a href="#ساخت-توکن-api-در-cloudflare"><b>ساخت توکن</b></a> ·
+  <a href="#نصب-سریع-حدود-۵-دقیقه"><b>نصب سریع</b></a> ·
+  <a href="#بعد-از-نصب"><b>بعد از نصب</b></a> ·
+  <a href="SECURITY.md"><b>امنیت</b></a>
+</p>
 
 ---
 
-## XrayMOD چیست؟
+## XRayMOD چیه؟
 
-XrayMOD یک **پنل مدیریت پروکسی سرورلس و خودمیزبان** است که به‌طور کامل روی Cloudflare Workers اجرا می‌شود. این پنل داشبورد کاملی برای مدیریت پروتکل‌های VLESS، Trojan و Shadowsocks با قابلیت‌های پیشرفته ضد سانسور فراهم می‌کند.
+**XRayMOD** یک پنل **self-hosted** و **serverless** برای ساخت و مدیریت کاربر و لینک سابسکرایبشن روی **Cloudflare Workers + D1** است.
 
-**نیازی به زیرساخت نیست** — بدون VPS، بدون دامنه، بدون Docker. فقط روی Cloudflare استقرار بدید و شروع کنید.
+به‌جای اجارهٔ دائمی VPS فقط برای پنل، کنترل‌پلن روی لبهٔ Cloudflare اجرا می‌شود؛ داشبورد ادمین، صفحه وضعیت کاربر، ساب هوشمند و پوسته‌های استیلث را یک‌جا دارید.
+
+> **مسئولیت اپراتور:** رعایت قوانین Cloudflare، قوانین محلی و استفادهٔ مجاز بر عهدهٔ شماست. این نرم‌افزار زیرساخت است — نه مجوز حمله به شبکه‌هایی که مال شما نیستند.
 
 ---
 
-## نحوه کار
+## چرا به درد می‌خورد؟
 
-### معماری
+| مشکل رایج | کاری که XRayMOD می‌کند |
+|:----------|:------------------------|
+| هزینه و نگهداری VPS برای پنل کوچک | اجرا روی Workers + D1 |
+| اسکنر و حدس مسیر پنل | **SECURE PATH** اجباری (UUID تصادفی) — بدون آن همه چیز **۴۰۴** |
+| سوال مداوم کاربر: «حجمم چقدر مونده؟» | صفحه `/{SECURE}/me/<uuid>` با QR و کپی |
+| ساب ساده و ضعیف | بستهٔ هوشمند تا ۱۰ کانفیگ (IP تمیز، پورت CF، …) |
+| شبکه‌های فیلترشده | پوسته‌های جعلی + مسیرهای طعمه (Canary) |
 
-**Cloudflare CDN → Cloudflare Worker → D1 Database**
+---
 
-#### جریان درخواست
+## قابلیت‌ها
 
-1. **بررسی UUID**
-   - UUID تنظیم نشده → redirect به `/install`
-   - UUID اشتباه → صفحه ارور ۱۱۰۱
-   - UUID صحیح → حذف پیشوند، ادامه
+| | قابلیت | توضیح کوتاه |
+|:--:|:-------|:------------|
+| 🥷 | **SECURE PATH اجباری** | پنل / API / ساب / پورتال فقط زیر UUID |
+| 🛡 | **داشبورد ادمین** | کاربر، آپدیت، دامنه سفارشی، kill switch، ایمیل CF |
+| 📊 | **صفحه وضعیت کاربر** | حجم، روز باقی‌مانده، QR — بدون لاگین ادمین |
+| 🎯 | **ساب هوشمند** | مستقیم + IP تمیز + پورت‌های CF · فرمت Clash / sing-box |
+| 🥷 | **استیلث** | ۴۰۴ خاموش · CF 1101 · nginx · GitHub · WordPress |
+| 🕳 | **Canary** | مسیر جعلی برای لاگ اسکنر بدون لو رفتن پنل |
+| 💾 | **بک‌آپ و Audit** | خروجی/ورودی تنظیمات · تاریخچه اکشن ادمین |
+| 📡 | **Clean IP آگاه از ISP** | پیشنهاد بهتر وقتی داده موجود باشد |
+| 🔐 | **سخت‌سازی ادمین** | ایمیل CF · 2FA · rate limit |
+| ⚡ | **نصب یک‌خطی** | ویندوز / لینوکس / مک / WSL |
+| 📱 | **کلاینت‌ها** | v2rayNG ≥۲.۲.۳ · sing-box ≥۱.۱۲ · Hiddify · Streisand · Clash |
 
-2. **تطبیق مسیر**
-   - `/api/*` → هندلرهای REST API
-   - `/sub/:token` → لینک‌های اشتراک
-   - WebSocket → ترافیک پروکسی
-   - SPA (از Pages)
+---
 
-3. **جایگزین پنهان‌سازی**
-   - مسیرهای ناشناخته → صفحه ارور ۱۱۰۱
+## پیش‌نیازها
 
-#### ماژول‌های ورکر
+### سیستم شما
+- ویندوز ۱۰+، macOS ۱۲+، یا لینوکس جدید
+- اینترنت به `api.cloudflare.com` و GitHub
+- امکان اجرای **PowerShell** یا **Bash**
 
-| ماژول | توضیحات |
-|-------|---------|
-| React SPA (Static) | داشبورد فرانت‌اند |
-| REST API (Router) | هندلرهای مسیر API |
-| Proxy Handler | transport WS / gRPC / XHTTP |
-| Disguise System | سیستم دور زدن ارور ۱۱۰۱ |
-| TG Bot Webhook | هندلر ربات تلگرام |
-| Clean IP System | تشخیص ISP + بهینه‌سازی IP |
+### اکانت Cloudflare
+- اکانت Cloudflare (پلن رایگان برای بسیاری از استفاده‌های شخصی کافی است)
+- اجازه ساخت **Workers** و دیتابیس **D1**
+- یک **API Token** با دسترسی ویرایش Workers (بخش بعد)
 
-#### ذخیره‌سازی
+### اختیاری (نصب دستی / توسعه)
+- Node.js ۲۰+
+- npm ۱۰+
+- Wrangler ۳+
 
-- **پایگاه داده Cloudflare D1** — کاربران، پروتکل‌ها، کانفیگ‌ها، kvstore
+---
 
-### سیستم دسترسی UUID
+## ساخت توکن API در Cloudflare
 
-بعد از نصب، پنل شما **فقط** از طریق یک URL یکتای UUID قابل دسترسی است:
+توکن **به این ریپوی گیت‌هاب آپلود نمی‌شود**. فقط روی سیستم خودتان می‌ماند و برای APIهای Cloudflare استفاده می‌شود. ترجیحاً **توکن محدود (scoped)** بسازید، نه Global API Key.
 
+### مرحله‌به‌مرحله
+
+1. وارد [داشبورد Cloudflare](https://dash.cloudflare.com) شوید.
+2. از گوشه بالا راست روی آواتار → **My Profile** → **API Tokens**.  
+   لینک مستقیم: [https://dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens)
+3. روی **Create Token** بزنید.
+4. در بخش قالب‌ها، **Edit Cloudflare Workers** را انتخاب کنید → **Use template**.  
+   این قالب پیشنهادی رسمی برای شروع با XRayMOD است.
+5. تنظیمات را مرور کنید (در صورت تمایل محدودتر کنید):
+   - **Account resources** → فقط همان اکانتی که می‌خواهید پنل را روی آن بسازید  
+   - **Zone resources** → فقط اگر دامنه سفارشی می‌بندید؛ وگرنه می‌توانید مطابق قالب پیش بروید
+6. **Continue to summary** → **Create Token**.
+7. توکن را **یک‌بار** کپی کنید و در پسوردمنجر ذخیره کنید. Cloudflare دوباره نشانش نمی‌دهد.
+8. وقتی نصب‌کننده پرسید، همان توکن را وارد کنید.
+
+### توکن برای چه کارهایی مصرف می‌شود؟
+
+| کار | چرا |
+|:----|:----|
+| ساخت / آپدیت Worker | میزبانی پنل و لبه پروکسی |
+| ساخت / اتصال D1 | ذخیره کاربر و تنظیمات |
+| دامنه سفارشی (اختیاری) | وصل کردن دامنه به Worker |
+
+### چک‌لیست ایمنی
+
+- [ ] توکن را در Issue، PR، گروه تلگرام یا دیسکورد نفرستید  
+- [ ] داخل گیت یا اسکرین‌شات عمومی نگذارید  
+- [ ] اگر لو رفت، فوراً Rotate / Revoke کنید  
+- [ ] بعد از نصب روی سیستم یک‌بارمصرف، توکن قدیمی را باطل کنید  
+
+> اگر اکانت Cloudflare مشکل پرداخت / تعلیق داشته باشد، نصب شکست می‌خورد تا وضعیت اکانت درست شود.
+
+---
+
+## نصب سریع (حدود ۵ دقیقه)
+
+### ۱) یک دستور را اجرا کنید
+
+#### ویندوز — PowerShell (اعلان با `PS` شروع می‌شود)
+
+```powershell
+irm https://raw.githubusercontent.com/askarniroomand/XRayMOD/main/install.ps1 | iex
 ```
-https://your-worker.workers.dev/<uuid-یکتای-شما>/
+
+#### ویندوز — CMD (بدون `PS`)
+
+```cmd
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (iwr -UseBasicParsing 'https://raw.githubusercontent.com/askarniroomand/XRayMOD/main/install.ps1').Content"
 ```
 
-**تمام صفحات دیگر ارور ۱۱۰۱ جعلی Cloudflare نمایش می‌دهند** — پنل شما برای اسکنرها، بازرسان و حتی تیم Cloudflare نامرئی است.
-
-| اتفاق | نتیجه |
-|-------|-------|
-| بازدید از `/` (بدون UUID) | صفحه ارور ۱۱۰۱ |
-| بازدید از `/admin` | صفحه ارور ۱۱۰۱ |
-| بازدید از `/random-path` | صفحه ارور ۱۱۰۱ |
-| بازدید از `/<uuid-صحیح>/` | داشبورد پنل |
-| درخواست‌های API به `/api/*` | همیشه کار می‌کنند (نیاز به احراز هویت) |
-| ترافیک پروکسی (WebSocket) | همیشه کار می‌کند |
-
----
-
-## شروع سریع
-
-### قدم ۱ — نصب
-
-یک ترمینال باز کنید (Command Prompt، PowerShell، یا Terminal) و این دستور را کپی-پیست کنید:
+#### لینوکس / مک / WSL
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/EvolveBeyond/XRayMOD/refs/heads/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/askarniroomand/XRayMOD/main/install.sh)
 ```
 
-همین! اسکریپت خودکار:
-- ابزارهای لازم (`uv`) را نصب می‌کند
-- نصاب را دانلود می‌کند
-- WebUI را در مرورگر باز می‌کند
+اسکریپت خودش ابزارها را آماده می‌کند، سورس را می‌گیرد و پنل را می‌سازد. برای مسیر یک‌خطی **نصب git اجباری نیست**.
 
-### قدم ۲ — استقرار از WebUI
+### ۲) فقط سه ورودی بدهید
 
-مرورگر شما روی `http://localhost:8000` باز می‌شود. فقط مراحل صفحه را دنبال کنید:
+| مرحله | ورودی | نکته |
+|:-----:|:------|:-----|
+| ۱ | 🔑 توکن Cloudflare | طبق بخش بالا |
+| ۲ | 👤 نام کاربری ادمین | بعداً بهتر است ایمیل CF را در پنل ببندید |
+| ۳ | 🔒 رمز عبور | رمز قوی و یکتا |
 
-1. **توکن API کلاودفلر** خود را وارد کنید (از [dash.cloudflare.com](https://dash.cloudflare.com/profile/api-tokens) بگیرید → Create Token → قالب Edit Cloudflare Workers)
-2. روی **Verify** کلیک کنید — توکن بررسی می‌شود
-3. روی **Deploy** کلیک کنید — همه چیز خودکار ایجاد می‌شود
-4. **آدرس پنل را کپی کنید** — این لینک مخفی مدیریت شماست
+بقیه خودکار است: D1 · ساخت UI · دیپلوی Worker · bootstrap · چاپ لینک‌ها
 
-### قدم ۳ — ورود
+### ۳) لینک‌هایی که نصب‌کننده چاپ می‌کند را ذخیره کنید
 
-آدرس پنلی که کپی کردید را باز کنید. با این اطلاعات وارد شوید:
+| لینک | کاربرد |
+|:-----|:-------|
+| `/<SECURE_PATH>/login` | ورود ادمین (خصوصی نگه دارید) |
+| `/<SECURE_PATH>/panel` | داشبورد |
+| `/<SECURE_PATH>/sub/<UUID_کاربر>` | ساب اپ‌ها (پیش‌فرض Base64) |
+| `/<SECURE_PATH>/me/<UUID_کاربر>` | صفحه وضعیت کاربر |
+| `…/sub/<UUID>?format=clash` | خروجی Clash / Mihomo |
+| `…/sub/<UUID>?format=singbox` | خروجی sing-box |
 
-| فیلد | مقدار |
-|------|-------|
-| نام کاربری | `admin` |
-| رمز عبور | *(بعد از deploy نمایش داده می‌شود)* |
+> ⚠️ از نسل ۵.۱.۱ به بعد، مسیرهای برهنه مثل `/panel` یا `/sub/...` **بدون** SECURE PATH همه **۴۰۴** هستند. همیشه UUID مسیر را در لینک داشته باشید. جزئیات: [CHANGELOG-5.1.1.md](CHANGELOG-5.1.1.md)
 
-تمام شد — وارد شدید!
-
----
-
-> **نکته:** آدرس پنل را فراموش کردید؟ دستور نصب را دوباره اجرا کنید و دوباره deploy کنید.
+اگر پروژه برایتان مفید بود، ⭐ استار بزنید — انگیزه نگهداری را بالا نگه می‌دارد.
 
 ---
 
-## سیستم پنهان‌سازی (دور زدن ارور ۱۱۰۱)
+## بعد از نصب
 
-سیستم پنهان‌سازی پنل شما را برای هر کسی که UUID را نمی‌داند **نامرئی** می‌کند.
+1. بروید به `/<SECURE_PATH>/login` و با یوزر/رمزی که ساختید وارد شوید.
+2. یک کاربر آزمایشی با حجم و تاریخ انقضا بسازید.
+3. لینک **ساب** را در Hiddify / v2rayNG / Clash / sing-box ایمپورت کنید.
+4. `/{SECURE}/me/<uuid>` را در مرورگر باز کنید و وضعیت را چک کنید.
+5. در تنظیمات ادمین، پوسته‌ٔ **استیلث** را انتخاب کنید و (پیشنهادی) ورود با **ایمیل Cloudflare** را فعال کنید.
+6. `SECURE_PATH`، آدرس Worker و رمز ادمین را در پسوردمنجر ذخیره کنید.
 
-### نحوه کار
-
-1. **دروازه UUID** — هر درخواست باید UUID شما را در مسیر URL داشته باشد
-2. **صفحات خطای جعلی** — بازدیدکنندگان غیرمجاز ارور ۱۱۰۱ واقعی‌نمای Cloudflare می‌بینند
-3. **مسیرهای مخفی** — اختیاری: مسیرهای سفارشی که به مسیرهای واقعی بازنویسی می‌شوند
-
-### پیکربندی
-
-| تنظیم | توضیحات | پیش‌فرض |
-|------|---------|---------|
-| فعال‌سازی پنهان‌سازی | فعال/غیرفعال کل سیستم | `false` |
-| مسیر مخفی ادمین | مسیر سفارشی برای دسترسی ادمین | — |
-| مسیر مخفی ورود | مسیر سفارشی برای ورود | — |
-| مسیر مخفی اشتراک | مسیر سفارشی برای اشتراک | — |
-| صفحه جایگزین | `1101` یا `nginx` | `1101` |
-
-### حالت بازیابی
-
-اگر قفل شدید، `PANEL_RECOVERY=1` را در متغیرهای محیطی ورکر تنظیم کنید تا مستقیماً به `/admin` دسترسی پیدا کنید.
+**کلاینت‌های پیشنهادی:** v2rayNG ≥ ۲.۲.۳ (Hev TUN) · sing-box ≥ ۱.۱۲ · Streisand · Hiddify · Clash
 
 ---
 
-## ویژگی‌ها
+## نصب دستی (برای توسعه‌دهنده)
 
-### موتور پروکسی
+<details>
+<summary><b>گام‌به‌گام: کلون → D1 → بیلد → دیپلوی</b></summary>
 
-| قابلیت | وضعیت |
-|--------|-------|
-| VLESS روی WebSocket | ✅ |
-| VLESS روی gRPC (gun/multi) | ✅ |
-| Trojan روی WebSocket | ✅ |
-| Shadowsocks روی WebSocket | ✅ |
-| ردیابی ترافیک به‌ازای هر کاربر | ✅ |
-| تولید خودکار لینک اشتراک | ✅ |
+<br/>
 
-### ضد سانسور
-
-| قابلیت | وضعیت |
-|--------|-------|
-| ECH (رمزنگاری Client Hello) | ✅ |
-| TLS Fragment | ✅ |
-| اسکن IP تمیز | ✅ |
-| بهینه‌سازی IP به‌تفکیک ISP | ✅ |
-| سیستم پنهان‌سازی (ارور ۱۱۰۱) | ✅ |
-
-### مدیریت
-
-| قابلیت | وضعیت |
-|--------|-------|
-| پنل ادمین | ✅ |
-| پنل کاربر | ✅ |
-| مدیریت از ربات تلگرام | ✅ |
-| ثبت بکند/VPS | ✅ |
-| پیکربندی پروتکل‌ها | ✅ |
-| فرمت‌های اشتراک (base64/Clash/sing-box) | ✅ |
-| تم تاریک زمردی | ✅ |
-| تلگرام مینی اپ | ✅ |
-
----
-
-## اسکنر IP تمیز
-
-تولید و مدیریت خودکار IP‌های کلاودفلر بهینه‌شده برای ISP شما.
-
-### اپراتورهای پشتیبانی شده
-
-| اپراتور | ASN | کد |
-|---------|-----|-----|
-| ایرانسل / MTN | 44244 | `mtn` |
-| همراه اول (MCI) | 197207 | `mci` |
-| رایتل | 57218 | `rightel` |
-| شاتل | 31549 | `shatel` |
-
----
-
-## ربات تلگرام
-
-مدیریت کامل پنل از تلگرام با ناوبری دکمه‌ای.
-
-### راه‌اندازی
-
-1. ساخت ربات از طریق [@BotFather](https://t.me/BotFather)
-2. کپی توکن ربات
-3. رفتن به تنظیمات → ربات تلگرام در پنل
-4. وارد کردن توکن و Chat ID
-5. ذخیره و اجرای دستور webhook
-
-### دستورات
-
-| دستور | توضیحات |
-|-------|---------|
-| `/start` | منوی اصلی با دکمه‌ها |
-| `/status` | آپتایم، تعداد کاربران |
-| `/sub` | دریافت لینک اشتراک |
-| `/users` | لیست کاربران (ادمین) |
-
----
-
-## حالت بکند
-
-به کاربران اجازه بدید VPS خودشون رو برای کانفیگ شخصی ارائه بدن.
-
-1. کاربر در بازار → سرور شما روی **ثبت** کلیک می‌کنه
-2. آدرس IP VPS خودش رو وارد می‌کنه
-3. اسکریپت نصب رو روی VPS اجرا می‌کنه
-4. لینک‌های اشتراک خودکار از طریق VPS مسیریابی می‌شوند
-
----
-
-## لینک‌های اشتراک
-
-| فرمت | پارامتر | توضیحات |
-|------|---------|---------|
-| Base64 | `?format=base64` | پیش‌فرض |
-| Clash/Mihomo | `?format=clash` | YAML با گروه‌های پروکسی |
-| sing-box | `?format=singbox` | JSON با outbounds |
-
----
-
-## ساختار پروژه
-
-```
-XRayMOD/
-├── worker/                  # سورس ورکر کلاودفلر (TypeScript)
-│   ├── index.ts             # نقطه ورود
-│   ├── router.ts            # مسیریابی + دروازه UUID + پنهان‌سازی
-│   ├── auth.ts              # مدیریت نشست
-│   ├── schema.ts            # اسکیمای D1 + پروتکل‌های پیش‌فرض
-│   ├── types.ts             # تایپ‌اسکریپت interfaceها
-│   ├── disguise.ts          # سیستم دور زدن ارور ۱۱۰۱
-│   ├── telegram.ts          # وب‌هوک ربات تلگرام
-│   ├── utils.ts             # تشخیص ISP، CIDR IPs، ابزارها
-│   ├── api/                 # هندلرهای مسیر API
-│   ├── proxy/               # هندلرهای transport (VLESS, Trojan, SS, gRPC, XHTTP)
-│   └── subscription.ts      # تولید لینک اشتراک
-├── src/                     # فرانت‌اند React (Vite + Tailwind v4)
-├── components/ui/           # کامپوننت‌های shadcn/ui
-├── installer/               # نصاب WebUI با FastAPI
-│   ├── app.py               # اپلیکیشن FastAPI + مسیرها
-│   ├── cf_api.py            # کلاینت API کلاودفلر
-│   ├── deployer.py          # منطق استقرار (ورکر + D1)
-│   ├── config.py            # ذخیره پیکربندی محلی
-│   ├── templates/index.html # فرانت‌اند نصاب
-│   └── static/              # فایل‌های CSS + JS
-├── backend/                 # بک‌اند FastAPI برای حالت VPS
-│   ├── main.py              # اپلیکیشن FastAPI با ۱۰ روتر
-│   └── database.py          # اسکیمای SQLite/PostgreSQL
-├── worker.js                # باندل کامپایل شده ورکر
-└── wrangler.toml            # پیکربندی کلاودفلر
+```bash
+git clone https://github.com/askarniroomand/XRayMOD.git
+cd XRayMOD
+npm install
+npm install --prefix frontend
+npm run build:ui
+npx wrangler login
+npx wrangler d1 create xraymod-db
+# database_id را در wrangler.toml بگذارید
+npx wrangler deploy
 ```
 
+راه‌اندازی اولیه ادمین:
+
+```bash
+curl -X POST "https://WORKER.workers.dev/install" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"YourStrongPass123"}'
+```
+
+ورود:
+
+```text
+https://WORKER.workers.dev/<SECURE_PATH>/login
+https://WORKER.workers.dev/<SECURE_PATH>/panel
+```
+
+ساب و وضعیت:
+
+```text
+https://WORKER.workers.dev/<SECURE_PATH>/sub/<USER_UUID>
+https://WORKER.workers.dev/<SECURE_PATH>/me/<USER_UUID>
+```
+
+جزئیات بیشتر: [DEPLOY.md](./DEPLOY.md)
+
+</details>
+
 ---
 
-## عیب‌یابی
+## معماری خلاصه
 
-### قفل شدن توسط پنهان‌سازی
-`PANEL_RECOVERY=1` در متغیرهای محیطی ورکر تنظیم کنید.
+```text
+اینترنت → لبه Cloudflare (Worker)
+              ├─ دروازه SECURE PATH (۴۰۴ خاموش)
+              ├─ پوسته‌های جعلی / استاتیک
+              ├─ API ادمین + داشبورد
+              ├─ اندپوینت سابسکرایبشن
+              ├─ پورتال /{SECURE}/me
+              └─ D1 (کاربر، تنظیمات، audit)
+```
 
-### فراموش کردن آدرس پنل
-1. نصاب را دوباره اجرا کنید (`bash <(curl -fsSL ...)`) و ورکر جدیدی استقرار دهید
-2. یا از `PANEL_RECOVERY=1` برای دسترسی به پنل قدیمی استفاده کنید
-
-### نصاب شروع نمی‌شود
-- مطمئن شید `uv` نصب است: `uv --version`
-- مطمئن شید `curl` نصب است: `curl --version`
-- دستی اجرا کنید: `cd ~/.xraymod/XRayMOD && uv run xraymod-install`
-
-### استقرار از WebUI با خطا مواجه می‌شود
-- مطمئن شید توکن API کلاودفلر معتبر است (WebUI خودکار بررسی می‌کند)
-- بررسی کنید دسترسی CF Workers در حساب شما فعال است
-- نام ورکر را تغییر دهید (باید یکتا باشد)
-
----
-
-## مجوز
-
-مجوز MIT — جزئیات در [LICENSE](LICENSE)
+| مسیر | نقش |
+|:-----|:----|
+| `worker/` | **منبع حقیقت تولید** — روتینگ، احراز هویت، ساب، پورتال |
+| `frontend/` | UI پنل ادمین |
+| `installer/` + `install.*` | نصب روی اکانت Cloudflare |
+| `telegram-bot/` | ربات اختیاری برای ساخت/حذف/آپدیت چند پنل |
+| `backend/` | آزمایش‌های قدیمی پایتون — برای دیپلوی Workers لازم نیست |
 
 ---
 
-<div align="center">
+## سوالات پرتکرار
 
-**ساخته شده برای اینترنت آزاد. هیچ اطلاعاتی از ترافیک ذخیره نمی‌شود. پروکسی متعلق به خود شماست.**
+<details>
+<summary><b>آیا VPS لازم است؟</b></summary>
 
-</div>
+برای خود پنل خیر. کنترل‌پلن روی Workers + D1 است. نود/بک‌اند پروکسی موضوع جداگانه‌ای است.
+</details>
+
+<details>
+<summary><b>پلن رایگان Cloudflare کافی است؟</b></summary>
+
+برای خیلی از استفاده‌های شخصی بله. با رشد ترافیک، سقف Workers و D1 را زیر نظر بگیرید.
+</details>
+
+<details>
+<summary><b>توکن کجا ذخیره می‌شود؟</b></summary>
+
+فقط روی ماشین شما هنگام نصب و فقط به API کلودفلر فرستاده می‌شود. داخل ریپو نرود. ببینید [SECURITY.md](./SECURITY.md).
+</details>
+
+<details>
+<summary><b>چرا روی /panel خطای ۴۰۴ می‌گیرم؟</b></summary>
+
+نسل ۵.۱.۱ پیشوند UUID (SECURE PATH) را اجباری کرده. لینک کامل چاپ‌شده توسط نصب‌کننده را استفاده کنید.
+</details>
+
+<details>
+<summary><b>Hiddify / v2rayNG پشتیبانی می‌شود؟</b></summary>
+
+بله. لینک ساب را ایمپورت کنید. فرمت Clash و sing-box با پارامتر `format` در دسترس است.
+</details>
+
+<details>
+<summary><b>باگ امنیتی را کجا گزارش کنم؟</b></summary>
+
+خصوصی به تلگرام [@MRROBOT_DT](https://t.me/MRROBOT_DT) — Issue عمومی با توکن/رمز نسازید.
+</details>
+
+---
+
+## پشتیبانی
+
+<p align="center">
+  <a href="https://t.me/MRROBOT_DT"><img src="https://img.shields.io/badge/تلگرام-@MRROBOT__DT-26A5E4?style=for-the-badge&logo=telegram" alt="Telegram"/></a>
+</p>
+
+سوال، باگ، پیشنهاد — خوشحال می‌شویم کمک کنیم.  
+**لینک پنل، رمز و توکن را عمومی نفرستید.**
+
+نسخه انگلیسی و جزئیات بیشتر: [README.md](README.md)
+
+---
+
+## مشارکت
+
+بخوانید: [CONTRIBUTING.md](./CONTRIBUTING.md) و [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+
+```bash
+git clone https://github.com/askarniroomand/XRayMOD.git
+cd XRayMOD
+npm install
+# برنچ بسازید، تغییر دهید، PR به main بزنید
+```
+
+PRهای مستندات و تست‌ها عالی‌اند برای شروع.
+
+---
+
+## نویسنده‌ها
+
+| | گیت‌هاب |
+|:--|:--------|
+| عسکر نیرومند | [@askarniroomand](https://github.com/askarniroomand) |
+| Pakrohk | [@Pakrohk](https://github.com/Pakrohk) |
+
+---
+
+## لایسنس
+
+[MIT](LICENSE) © Askar Niroomand & Pakrohk

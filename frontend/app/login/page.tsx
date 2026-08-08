@@ -1,84 +1,196 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Zap } from 'lucide-react';
+import { Shield, Loader2, Eye, EyeOff, Lock, User } from 'lucide-react';
 import { api } from '@/lib/api';
+import { goPanel } from '@/lib/paths';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [totp, setTotp] = useState('');
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [require2fa, setRequire2fa] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setLoading(true);
     setError('');
+
     try {
-      const data = await api.post('/api/login', { username, password });
-      if (data.success) {
-        router.push('/panel');
-      } else {
-        setError(data.message || 'Login failed');
+      const data =
+        require2fa && challenge
+          ? await api.post('/api/login', { challenge, totp })
+          : await api.post('/api/login', {
+              username: username.trim(),
+              password,
+              ...(totp ? { totp } : {}),
+            });
+
+      if (data?.require2fa && data?.challenge) {
+        setRequire2fa(true);
+        setChallenge(data.challenge);
+        setError('');
+        toast.message('کد Authenticator را وارد کنید');
+        setLoading(false);
+        return;
       }
+
+      if (data?.success) {
+        toast.success('ورود موفق');
+        if (data.initialConfig) {
+          try {
+            sessionStorage.setItem('xraymod_initial', JSON.stringify(data.initialConfig));
+          } catch {
+            /* ignore */
+          }
+        }
+        goPanel('/panel');
+        return;
+      }
+
+      setError(data?.message || data?.error || 'نام کاربری یا رمز اشتباه است');
     } catch {
-      setError('Network error');
+      setError('خطای شبکه — API در دسترس نیست');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center font-black text-2xl text-black mx-auto mb-6">
-            X
-          </div>
-          <h1 className="text-2xl font-black text-center mb-1">XrayMOD</h1>
-          <p className="text-zinc-500 text-sm text-center mb-8">Sign in to your panel</p>
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      <div className="absolute inset-0 aperture-grid opacity-50 pointer-events-none" />
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                placeholder="admin"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+      <div className="w-full max-w-[400px] relative page-shell">
+        <div className="surface rounded-[var(--radius-lg)] p-7 sm:p-8 border border-[var(--stroke-strong)]">
+          <div className="flex flex-col items-center mb-8">
+            <div className="brand-mark !w-14 !h-14 mb-5" aria-hidden />
+            <h1 className="font-display text-2xl font-bold tracking-tight">
+              Xray<span className="text-[var(--accent)]">MOD</span>
+            </h1>
+            <p className="text-[var(--text-muted)] text-sm mt-2 text-center">
+              {require2fa ? 'تأیید دو مرحله‌ای' : 'ورود امن به کنترل‌پلین'}
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4" noValidate>
+            {!require2fa && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-semibold text-[var(--text-faint)] uppercase tracking-[0.12em]">
+                    Cloudflare email / username
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-faint)]" />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
+                      className="w-full pl-10 pr-4 py-3.5 bg-[var(--bg)] border border-[var(--stroke-strong)] rounded-[var(--radius)] text-sm focus:border-[var(--accent)]/50 focus:ring-2 focus:ring-[var(--accent)]/15 transition-all placeholder:text-[var(--text-faint)]"
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-semibold text-[var(--text-faint)] uppercase tracking-[0.12em]">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-faint)]" />
+                    <input
+                      type={showPass ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      className="w-full pl-10 pr-12 py-3.5 bg-[var(--bg)] border border-[var(--stroke-strong)] rounded-[var(--radius)] text-sm focus:border-[var(--accent)]/50 focus:ring-2 focus:ring-[var(--accent)]/15 transition-all placeholder:text-[var(--text-faint)]"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(!showPass)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text)] p-1"
+                      tabIndex={-1}
+                    >
+                      {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {require2fa && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[11px] font-semibold text-[var(--text-faint)] uppercase tracking-[0.12em]">
+                  <Shield size={12} className="text-[var(--accent)]" />
+                  Authenticator
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={totp}
+                  onChange={(e) => setTotp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  autoComplete="one-time-code"
+                  autoFocus
+                  className="w-full px-4 py-3.5 bg-[var(--bg)] border border-[var(--stroke-strong)] rounded-[var(--radius)] text-sm text-center tracking-[0.4em] font-mono focus:border-[var(--accent)]/50 focus:ring-2 focus:ring-[var(--accent)]/15"
+                  placeholder="000000"
+                  required
+                />
+              </div>
+            )}
 
             {error && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-sm text-rose-400">
+              <div className="p-3.5 bg-[var(--coral-soft)] border border-[rgba(255,92,69,0.3)] rounded-[var(--radius)] text-sm text-[var(--coral)] leading-relaxed">
                 {error}
               </div>
             )}
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-bold rounded-xl transition-colors"
+              disabled={loading || (!require2fa && (!username.trim() || !password))}
+              className="w-full py-3.5 bg-[var(--coral)] hover:brightness-110 active:scale-[0.99] disabled:bg-white/5 disabled:text-[var(--text-faint)] disabled:active:scale-100 text-white font-semibold rounded-[var(--radius)] transition-all flex items-center justify-center gap-2 shadow-[0_10px_28px_-14px_rgba(255,92,69,0.7)] mt-1"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  در حال ورود...
+                </>
+              ) : require2fa ? (
+                'تأیید و ادامه'
+              ) : (
+                'ورود'
+              )}
             </button>
+
+            {require2fa && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRequire2fa(false);
+                  setChallenge(null);
+                  setTotp('');
+                }}
+                className="w-full text-xs text-[var(--text-faint)] hover:text-[var(--text-muted)] py-2"
+              >
+                بازگشت
+              </button>
+            )}
           </form>
         </div>
+
+        <p className="text-center text-[11px] text-[var(--text-faint)] mt-6 leading-relaxed font-display tracking-wide">
+          SECURE PATH · private entry
+          <br />
+          Unauthorized requests return 404
+        </p>
       </div>
     </div>
   );

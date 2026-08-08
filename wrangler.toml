@@ -1,17 +1,28 @@
+# Template — install.sh rewrites this automatically.
+# Manual: npx wrangler d1 create xraymod-db  → paste id below
+
 name = "xraymod"
 main = "worker/index.ts"
-compatibility_date = "2025-01-01"
+compatibility_date = "2024-11-01"
+workers_dev = true
+preview_urls = true
+
+[assets]
+directory = "./frontend/out"
+binding = "ASSETS"
+run_worker_first = true
 
 [[d1_databases]]
 binding = "DB"
 database_name = "xraymod-db"
-database_id = "placeholder-replace-with-your-d1-id"
+database_id = "00000000-0000-0000-0000-000000000000"
+preview_database_id = "00000000-0000-0000-0000-000000000000"
 
 [vars]
 ENABLE_TELEGRAM = "false"
 ENABLE_TON_WALLET = "false"
 EXTERNAL_SERVER_URL = ""
-DISGUISE_PAGE = "1101"
+DISGUISE_PAGE = "404"
 PANEL_RECOVERY = "false"
 TG_BOT_TOKEN = ""
 CRYPTO_KEY = ""
