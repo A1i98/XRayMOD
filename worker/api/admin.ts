@@ -6,7 +6,7 @@ import type { Env } from '../types';
 import { requireAdmin, hashPassword } from '../auth';
 import { appendAudit, clientIp } from '../lib/audit';
 
-export const APP_VERSION = '5.1.1';
+export const APP_VERSION = '1.9.12';
 const GITHUB_RELEASES =
   'https://api.github.com/repos/askarniroomand/XRayMOD/releases/latest';
 
