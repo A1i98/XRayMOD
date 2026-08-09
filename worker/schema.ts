@@ -255,7 +255,7 @@ const DEFAULT_SETTINGS = {
   'panel.cf_email': '',
   'panel.cf_email_enforce': 'false',
   'panel.custom_domains': '',
-  'panel.version': '5.1.1',
+  'panel.version': '1.9.12',
   'ech.enabled': 'false',
   'ech.sni': 'cloudflare-ech.com',
   'ech.dns': 'https://dns.alidns.com/dns-query',
@@ -385,7 +385,7 @@ async function ensureSchemaInner(db: D1Database): Promise<void> {
         .bind(k, def, nowSoft)
         .run();
     }
-    // Gen 5.1.1: harden existing panels once
+    // Gen 1.9.12: harden existing panels once
     if (version.v !== '4') {
       await db
         .prepare('INSERT OR REPLACE INTO kvstore (k, v, updated) VALUES (?, ?, ?)')
@@ -397,7 +397,7 @@ async function ensureSchemaInner(db: D1Database): Promise<void> {
         .run();
       await db
         .prepare('INSERT OR REPLACE INTO kvstore (k, v, updated) VALUES (?, ?, ?)')
-        .bind('panel.version', '5.1.1', nowSoft)
+        .bind('panel.version', '1.9.12', nowSoft)
         .run();
       await db
         .prepare('INSERT OR REPLACE INTO kvstore (k, v, updated) VALUES (?, ?, ?)')

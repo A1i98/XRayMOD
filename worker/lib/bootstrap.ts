@@ -167,7 +167,7 @@ export async function bootstrapPanel(
   await env.DB.prepare(
     'INSERT OR REPLACE INTO kvstore (k, v, updated) VALUES (?, ?, ?)'
   )
-    .bind('panel.version', '5.1.1', now)
+    .bind('panel.version', '1.9.12', now)
     .run();
 
   // Optional CF email from install username if it looks like an email

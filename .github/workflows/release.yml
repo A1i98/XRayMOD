@@ -36,7 +36,7 @@ jobs:
 
             See [CHANGELOG.md](https://github.com/askarniroomand/XRayMOD/blob/main/CHANGELOG.md) for details.
 
-            ### Breaking (5.1.1+)
+            ### Breaking (1.9.12+)
             Panel / API / subscription URLs require **SECURE PATH**:
             `https://YOUR.workers.dev/{SECURE_PATH}/panel`
 

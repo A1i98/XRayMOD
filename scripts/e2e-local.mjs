@@ -1,5 +1,5 @@
 /**
- * Local E2E against wrangler dev --local — Gen 5.1.1 SECURE PATH aware.
+ * Local E2E against wrangler dev --local — Gen 1.9.12 SECURE PATH aware.
  * Flow: wait /install → bootstrap → API under /{SECURE}/api → sub under /{SECURE}/sub
  *
  * Run: npm run test:e2e
@@ -52,7 +52,7 @@ async function run(cmd, args, cwd) {
 }
 
 async function main() {
-  console.log('\nXRayMOD local E2E (Gen 5.1.1)\n');
+  console.log('\nXRayMOD local E2E (Gen 1.9.12)\n');
 
   if (!fs.existsSync(path.join(ROOT, 'frontend/out/index.html'))) {
     console.log('Building UI…');
@@ -156,8 +156,8 @@ async function main() {
       const r = await fetch(api('/api/health'), { headers: { Cookie: cookie } });
       const body = await json(r);
       assert.equal(body.status, 'ok');
-      assert.equal(body.version, '5.1.1');
-      log('✓ GET /{SECURE}/api/health (admin) version 5.1.1');
+      assert.equal(body.version, '1.9.12');
+      log('✓ GET /{SECURE}/api/health (admin) version 1.9.12');
     }
 
     // Admin dashboard
@@ -165,7 +165,7 @@ async function main() {
       const r = await fetch(api('/api/admin/dashboard'), { headers: { Cookie: cookie } });
       const body = await json(r);
       assert.equal(body.success, true);
-      assert.equal(body.data.version, '5.1.1');
+      assert.equal(body.data.version, '1.9.12');
       assert.ok(body.data.secure_path);
       log('✓ GET /{SECURE}/api/admin/dashboard');
     }
