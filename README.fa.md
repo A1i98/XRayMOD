@@ -241,7 +241,7 @@ graph TD
     Edge --> Disguise[پوسته‌های جعلی \/ استاتیک]
     Edge --> Admin[API ادمین + داشبورد]
     Edge --> Sub[اندپوینت سابسکرایبشن]
-    Edge --> Portal[پورتال \/{SECURE}\/me]
+    Edge --> Portal["پورتال \/{SECURE}\/me"]
     Edge --> D1[(D1 دیتابیس - کاربر، تنظیمات، audit)]
 ```
 

@@ -90,7 +90,7 @@ graph TD
     Edge --> Disguise[Disguise / static responses]
     Edge --> Admin[Admin API + Admin Dashboard]
     Edge --> Sub[Subscription endpoints]
-    Edge --> Portal[/{SECURE}/me user portal]
+    Edge --> Portal["/{SECURE}/me user portal"]
     Edge --> D1[(D1 Database - users, settings, audit)]
 ```
 
