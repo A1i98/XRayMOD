@@ -14,6 +14,8 @@ frontend/tsconfig.tsbuildinfo
 .wrangler-dist/
 dist-worker/
 worker.js
+index.js
+build-worker.mjs
 *.map
 
 # Local / personal installer state (never commit)
