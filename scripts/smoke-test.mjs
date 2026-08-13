@@ -202,6 +202,18 @@ async function main() {
     fail('Core worker files present', e);
   }
 
+  // Remote key UI
+  try {
+    const fs = await import('node:fs');
+    const root = path.resolve(__dirname, '..');
+    const adminPage = fs.readFileSync(path.join(root, 'frontend/app/panel/admin/page.tsx'), 'utf8');
+    assert.ok(adminPage.includes("/api/remote/keys"), 'remote key UI endpoint missing');
+    assert.ok(adminPage.includes('Remote access'), 'remote key UI section missing');
+    ok('Remote key UI source present');
+  } catch (e) {
+    fail('Remote key UI source present', e);
+  }
+
   const passed = results.filter((r) => r.pass).length;
   const failed = results.filter((r) => !r.pass).length;
   console.log(`\n${passed} passed, ${failed} failed\n`);
