@@ -18,6 +18,8 @@ import { handleBackends } from './api/backends';
 import { handleWizard } from './api/wizard';
 import { handleTools } from './api/tools';
 import { handleAdmin } from './api/admin';
+import { handleRemoteKeys } from './api/remote';
+import { handleRemote } from './api/remote-api';
 import { handleSubscription } from './subscription';
 import { handleUserPortal } from './user-portal';
 import { handleProxyTraffic } from './proxy';
@@ -64,6 +66,8 @@ const routes: Route[] = [
   { pattern: /^\/api\/wizard(?:\/([^/]+))?$/, handler: handleWizard, params: ['action'] },
   { pattern: /^\/api\/tools(?:\/([^/]+))?$/, handler: handleTools, params: ['action'] },
   { pattern: /^\/api\/admin(?:\/([^/]+))?$/, handler: handleAdmin, params: ['action'] },
+  { pattern: /^\/api\/remote\/keys(?:\/([^/]+))?$/, handler: handleRemoteKeys, params: ['id'] },
+  { pattern: /^\/api\/remote\/([^/]+)(?:\/([^/]+))?$/, handler: handleRemote, params: ['resource', 'id'] },
   { pattern: /^\/sub\/([^/]+)$/, handler: handleSubscription, params: ['token'] },
   { pattern: /^\/me\/([^/]+)$/, handler: handleUserPortal, params: ['token'] },
   { pattern: /^\/status\/([^/]+)$/, handler: handleUserPortal, params: ['token'] },
