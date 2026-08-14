@@ -332,6 +332,18 @@ const TABLES = [
     status TEXT DEFAULT 'pending',
     created_at INTEGER
   )`,
+  `CREATE TABLE IF NOT EXISTS remote_api_keys (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    key_hash TEXT NOT NULL UNIQUE,
+    scopes_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    expires_at INTEGER,
+    last_used_at INTEGER,
+    created_at INTEGER NOT NULL,
+    revoked_at INTEGER
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_remote_api_keys_status ON remote_api_keys(status)`,
 ];
 
 /** Per-isolate cache — avoid re-running heavy DDL/seed on every request */
